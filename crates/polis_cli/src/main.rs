@@ -24,7 +24,7 @@ fn main() {
     let report_every = (ticks / 10).max(1);
     for _ in 0..ticks {
         world.step();
-        if world.tick % report_every == 0 {
+        if world.tick.is_multiple_of(report_every) {
             let s = world.stats();
             println!(
                 "{:<6} {:<6} {:<8} {:<5} {:<8.2} {:.2}",
