@@ -57,6 +57,8 @@ pub struct Agent {
     pub home: Option<usize>,
     pub missed_rent: u32,
     pub unpaid_streak: u32,
+    /// Ticks of paid work in each job, which raises pay over time.
+    pub experience: [u32; Job::ALL.len()],
 }
 
 impl Agent {
@@ -77,11 +79,17 @@ impl Agent {
             home: None,
             missed_rent: 0,
             unpaid_streak: 0,
+            experience: [0; Job::ALL.len()],
         }
     }
 
     pub fn is_alive(&self) -> bool {
         self.death.is_none()
+    }
+
+    /// How seasoned this person is in a job.
+    pub fn seasoning(&self, job: Job) -> u32 {
+        self.experience[job.index()]
     }
 
     /// Ticks this person can live, set by their genes.

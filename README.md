@@ -14,9 +14,12 @@ Countries never go to war by themselves. Group conflict exists only as an option
 
 * Genomes, needs, moods, unique names, and a food commons
 * A conserved money supply: coins only move between people, the food market, and the realty office
-* Jobs matched to genes (farmer, builder, clerk), wages, rent, eviction, homelessness
+* Four jobs matched to genes (farmer, builder, mechanic, shopkeeper), each with its own pay, raised by talent and experience, and paid only from what the employer holds
+* Homes that differ by district, kind (shack, flat, house, villa), size, and condition, with rent that follows appeal, nearby services, neighbor wealth, and demand
+* Builders who build where demand is strongest, mechanics who repair worn homes, shopkeepers whose number limits how many meals the shop can serve
+* People who choose homes by taste and budget
 * A food market whose price follows scarcity, and a town dividend that keeps coins circulating
-* Inequality (Gini) and housing statistics
+* Inequality (Gini), housing, wage, and district reports
 
 ## Principles
 
@@ -41,6 +44,7 @@ Arguments are seed, ticks, and population.
 
 1. Core engine, genome, needs, mood, movement (done)
 2. Economy, jobs, housing (done)
+2.5. Skill based pay, districts, home kinds and sizes, neighbors (done)
 3. Relationships, family, life cycle, inheritance
 4. Memory, gossip, language model conversation layer
 5. Law, police, courts, prison

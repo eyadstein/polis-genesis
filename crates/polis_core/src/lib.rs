@@ -8,13 +8,16 @@
 pub mod agent;
 pub mod economy;
 pub mod genome;
+pub mod housing;
 pub mod mood;
 pub mod names;
 pub mod needs;
+pub mod report;
 pub mod rng;
 pub mod world;
 
 pub use agent::{Action, Agent, AgentId, Death};
 pub use economy::{Coins, Job};
 pub use genome::{Gene, Genome};
+pub use housing::Kind;
 pub use world::{Stats, World, WorldConfig};
