@@ -1,0 +1,9 @@
+[package]
+name = "polis_cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Command line runner for Polis Genesis"
+
+[dependencies]
+polis_core = { path = "../polis_core" }
