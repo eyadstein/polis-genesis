@@ -10,6 +10,14 @@ A living world of autonomous people. Nobody scripts what they do. Each person is
 
 Countries never go to war by themselves. Group conflict exists only as an optional scenario switch that is off by default.
 
+## What exists so far
+
+* Genomes, needs, moods, unique names, and a food commons
+* A conserved money supply: coins only move between people, the food market, and the realty office
+* Jobs matched to genes (farmer, builder, clerk), wages, rent, eviction, homelessness
+* A food market whose price follows scarcity, and a town dividend that keeps coins circulating
+* Inequality (Gini) and housing statistics
+
 ## Principles
 
 * Deterministic: the same seed gives the same world on every machine.
@@ -32,7 +40,7 @@ Arguments are seed, ticks, and population.
 ## Roadmap
 
 1. Core engine, genome, needs, mood, movement (done)
-2. Economy, jobs, housing
+2. Economy, jobs, housing (done)
 3. Relationships, family, life cycle, inheritance
 4. Memory, gossip, language model conversation layer
 5. Law, police, courts, prison

@@ -6,6 +6,7 @@
 //! from their own state and what they perceive.
 
 pub mod agent;
+pub mod economy;
 pub mod genome;
 pub mod mood;
 pub mod names;
@@ -14,5 +15,6 @@ pub mod rng;
 pub mod world;
 
 pub use agent::{Action, Agent, AgentId, Death};
+pub use economy::{Coins, Job};
 pub use genome::{Gene, Genome};
 pub use world::{Stats, World, WorldConfig};

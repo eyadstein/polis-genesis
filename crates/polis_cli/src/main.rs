@@ -20,15 +20,27 @@ fn main() {
     let ticks = arg(2, 3000);
     let mut world = World::new(config);
 
-    println!("tick   alive  starved  old   valence  hunger");
+    println!("tick   alive  starved  valence  money  gini  jobs  homeless  homes  price");
     let report_every = (ticks / 10).max(1);
+    let mut until_report = report_every;
     for _ in 0..ticks {
         world.step();
-        if world.tick.is_multiple_of(report_every) {
+        until_report -= 1;
+        if until_report == 0 {
+            until_report = report_every;
             let s = world.stats();
             println!(
-                "{:<6} {:<6} {:<8} {:<5} {:<8.2} {:.2}",
-                s.tick, s.alive, s.starved, s.died_old, s.mean_valence, s.mean_hunger
+                "{:<6} {:<6} {:<8} {:<8.2} {:<6.0} {:<5.2} {:<5} {:<9} {:<6} {}",
+                s.tick,
+                s.alive,
+                s.starved,
+                s.mean_valence,
+                s.mean_money,
+                s.gini,
+                s.employed,
+                s.homeless,
+                s.homes,
+                s.food_price
             );
         }
     }
@@ -37,8 +49,8 @@ fn main() {
     for agent in world.agents.iter().filter(|a| a.is_alive()).take(3) {
         let (gene, value) = agent.genome.standout();
         println!(
-            "{} is doing {:?}, standout trait {:?} ({:.2})",
-            agent.name, agent.action, gene, value
+            "{} is doing {:?}, job {:?}, {} coins, standout trait {:?} ({:.2})",
+            agent.name, agent.action, agent.job, agent.money, gene, value
         );
     }
     println!("\nstate hash {:016x}", world.state_hash());
