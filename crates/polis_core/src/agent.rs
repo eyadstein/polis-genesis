@@ -9,6 +9,9 @@ use crate::rng::Rng;
 
 pub type AgentId = u32;
 
+/// Age in ticks at which a child becomes an adult.
+pub const ADULT_AGE: u32 = 4000;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
     Eat,
@@ -59,6 +62,11 @@ pub struct Agent {
     pub unpaid_streak: u32,
     /// Ticks of paid work in each job, which raises pay over time.
     pub experience: [u32; Job::ALL.len()],
+    pub partner: Option<AgentId>,
+    pub parents: Option<(AgentId, AgentId)>,
+    /// 0 for the founders, one more than the older parent for everyone else.
+    pub generation: u32,
+    pub baby_cooldown: u32,
 }
 
 impl Agent {
@@ -80,11 +88,24 @@ impl Agent {
             missed_rent: 0,
             unpaid_streak: 0,
             experience: [0; Job::ALL.len()],
+            partner: None,
+            parents: None,
+            generation: 0,
+            baby_cooldown: 0,
         }
     }
 
     pub fn is_alive(&self) -> bool {
         self.death.is_none()
+    }
+
+    pub fn is_adult(&self) -> bool {
+        self.age >= ADULT_AGE
+    }
+
+    /// Past the age for starting a family.
+    pub fn is_elderly(&self) -> bool {
+        self.age > self.lifespan() * 6 / 10
     }
 
     /// How seasoned this person is in a job.

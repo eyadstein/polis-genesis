@@ -7,6 +7,7 @@
 
 pub mod agent;
 pub mod economy;
+pub mod family;
 pub mod genome;
 pub mod housing;
 pub mod mood;

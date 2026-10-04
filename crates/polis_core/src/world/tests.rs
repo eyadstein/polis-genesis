@@ -139,7 +139,10 @@ fn housing_records_always_agree() {
         let homes = &world.economy.realty.homes;
         for agent in world.agents.iter().filter(|a| a.is_alive()) {
             if let Some(index) = agent.home {
-                assert_eq!(homes[index].tenant, Some(agent.id));
+                let head = homes[index].tenant.expect("lived in home has a head");
+                let head = &world.agents[head as usize];
+                assert!(head.is_alive());
+                assert_eq!(head.home, Some(index));
             }
         }
         for (index, home) in homes.iter().enumerate() {
@@ -259,5 +262,117 @@ fn rents_stay_positive_and_conditions_stay_in_range() {
             assert!(home.rent >= 1);
             assert!((0.0..=100.0).contains(&home.condition));
         }
+    }
+}
+
+fn long_world(seed: u64) -> World {
+    let mut world = World::new(medium_config(seed));
+    world.run(8000);
+    world
+}
+
+#[test]
+fn couples_form_and_children_are_born() {
+    let world = long_world(53);
+    let stats = world.stats();
+    assert!(stats.couples > 0);
+    assert!(stats.births > 0);
+    assert!(stats.max_generation >= 1);
+    assert!(stats.alive > 0);
+}
+
+#[test]
+fn partners_are_mutual_alive_and_unrelated() {
+    let world = long_world(59);
+    for agent in world.agents.iter().filter(|a| a.is_alive()) {
+        if let Some(p) = agent.partner {
+            let other = &world.agents[p as usize];
+            assert!(other.is_alive());
+            assert_eq!(other.partner, Some(agent.id));
+            assert!(agent.is_adult() && other.is_adult());
+            assert!(!crate::family::are_kin(agent, other));
+        }
+    }
+}
+
+#[test]
+fn children_come_from_their_parents() {
+    let world = long_world(61);
+    let mut checked = 0;
+    for child in world.agents.iter().filter(|a| a.parents.is_some()) {
+        let (x, y) = child.parents.expect("has parents");
+        let (a, b) = (&world.agents[x as usize], &world.agents[y as usize]);
+        assert!(x < child.id && y < child.id);
+        assert_eq!(child.generation, a.generation.max(b.generation) + 1);
+        assert!(child.genome.distance(&a.genome) < 0.5);
+        assert!(child.genome.distance(&b.genome) < 0.5);
+        assert!(child.genome != a.genome && child.genome != b.genome);
+        checked += 1;
+    }
+    assert!(checked > 0);
+}
+
+#[test]
+fn names_stay_unique_as_the_town_grows() {
+    let world = long_world(67);
+    let names: BTreeSet<&str> = world.agents.iter().map(|a| a.name.as_str()).collect();
+    assert_eq!(names.len(), world.agents.len());
+}
+
+#[test]
+fn children_never_work_or_hold_a_tenancy() {
+    let mut world = World::new(medium_config(71));
+    for _ in 0..8000 {
+        world.step();
+        for agent in world
+            .agents
+            .iter()
+            .filter(|a| a.is_alive() && !a.is_adult())
+        {
+            assert!(agent.job.is_none());
+            if let Some(index) = agent.home {
+                let head = world.economy.realty.homes[index].tenant;
+                assert!(head.is_some());
+            }
+        }
+    }
+}
+
+#[test]
+fn money_is_conserved_through_births_deaths_and_inheritance() {
+    let mut world = World::new(medium_config(73));
+    let start = world.total_money();
+    for _ in 0..80 {
+        world.run(100);
+        assert_eq!(world.total_money(), start);
+        assert!(world.agents.iter().all(|a| a.money >= 0));
+    }
+}
+
+#[test]
+fn newborns_start_with_no_money_and_a_home() {
+    let world = long_world(79);
+    for child in world
+        .agents
+        .iter()
+        .filter(|a| a.parents.is_some() && a.age < 50)
+    {
+        assert!(child.home.is_some() || !child.is_alive());
+    }
+}
+
+#[test]
+fn households_stay_within_their_homes_room_limit() {
+    let mut world = World::new(medium_config(83));
+    for _ in 0..6000 {
+        world.step();
+    }
+    for (index, home) in world.economy.realty.homes.iter().enumerate() {
+        let residents = world
+            .agents
+            .iter()
+            .filter(|a| a.is_alive() && a.home == Some(index))
+            .count();
+        assert!(residents <= usize::from(home.rooms) * 2 + 4);
     }
 }

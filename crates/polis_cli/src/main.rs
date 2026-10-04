@@ -20,7 +20,9 @@ fn main() {
     let ticks = arg(2, 3000);
     let mut world = World::new(config);
 
-    println!("tick   alive  starved  valence  money  gini  jobs  homeless  vacant  rent  price");
+    println!(
+        "tick   alive  kids  pairs  births  gen  starved  money  gini  jobs  homeless  vacant  rent"
+    );
     let report_every = (ticks / 10).max(1);
     let mut until_report = report_every;
     for _ in 0..ticks {
@@ -30,18 +32,20 @@ fn main() {
             until_report = report_every;
             let s = world.stats();
             println!(
-                "{:<6} {:<6} {:<8} {:<8.2} {:<6.0} {:<5.2} {:<5} {:<9} {:<7} {:<5.1} {}",
+                "{:<6} {:<6} {:<5} {:<6} {:<7} {:<4} {:<8} {:<6.0} {:<5.2} {:<5} {:<9} {:<7} {:<5.1}",
                 s.tick,
                 s.alive,
+                s.children,
+                s.couples,
+                s.births,
+                s.max_generation,
                 s.starved,
-                s.mean_valence,
                 s.mean_money,
                 s.gini,
                 s.employed,
                 s.homeless,
                 s.vacant,
-                s.mean_rent,
-                s.food_price
+                s.mean_rent
             );
         }
     }

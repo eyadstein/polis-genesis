@@ -19,6 +19,7 @@ Countries never go to war by themselves. Group conflict exists only as an option
 * Builders who build where demand is strongest, mechanics who repair worn homes, shopkeepers whose number limits how many meals the shop can serve
 * People who choose homes by taste and budget
 * A food market whose price follows scarcity, and a town dividend that keeps coins circulating
+* Couples that form between compatible adults, children who inherit a mix of both genomes with mutation, growing up, households that share a home, inheritance of money and of the home
 * Inequality (Gini), housing, wage, and district reports
 
 ## Principles
@@ -45,7 +46,7 @@ Arguments are seed, ticks, and population.
 1. Core engine, genome, needs, mood, movement (done)
 2. Economy, jobs, housing (done)
 2.5. Skill based pay, districts, home kinds and sizes, neighbors (done)
-3. Relationships, family, life cycle, inheritance
+3. Couples, children, life stages, inheritance (done)
 4. Memory, gossip, language model conversation layer
 5. Law, police, courts, prison
 6. Schools, belief systems, culture, sports

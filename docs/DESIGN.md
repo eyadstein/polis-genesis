@@ -34,6 +34,16 @@ People choose a vacant home by taste and budget. Outgoing people like busy distr
 
 Job openings cover only about half the town. Over thousands of ticks this produces a permanent jobless group with almost no savings, who cannot afford any home, while many homes stand empty. In a 200 person run the Gini reaches about 0.86 and about 130 people are homeless by tick 8000. Rents fall as the empty homes pile up. More kinds of work, families, schools, and public services in later phases will change this balance. Taste for homes uses simple placeholder genes until families bring real space needs. Neighbors affect rent through their wealth, but people do not yet socialize with neighbors or move around their own district.
 
+## Families
+
+Any two adults who are not close kin (parent and child, or siblings) and are within 6000 ticks of each other in age can pair. Singles who socialize within three cells of each other grow closer each tick in proportion to how compatible they are (alike in nature and warm). People who do not suit each other never grow close. A pair shares the bigger of their two homes.
+
+A couple with room, savings, and time since the last birth sometimes has a child. The child's genome mixes both parents' genes with a small chance of mutation, so families resemble each other but nobody is a copy. Each person records parents and a generation number. Children cannot work. The adult in charge of the household feeds them, and they become adults at 4000 ticks. Grown singles leave when they can afford their own home.
+
+The head of a household pays the rent for everyone in it. When someone dies, money goes to the partner, else to the children, else to the realty office, and the home passes to the partner or the eldest resident. Money stays conserved through births, deaths, and inheritance.
+
+Known limits: people have no sex, gender, or orientation yet, so a couple stands for any bond and a birth also stands for adoption. Orphans inherit and carry on as small households. There is still no extra work for a growing town, so inequality and homelessness keep rising.
+
 ## Free stack
 
 Rust, SQLite, local models through open runtimes, GitHub Actions. No paid service is required.
