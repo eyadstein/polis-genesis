@@ -3,6 +3,7 @@
 
 use crate::economy::{Coins, Job, SAFETY_SAVINGS};
 use crate::genome::{Gene, Genome};
+use crate::memory::Mind;
 use crate::mood::Mood;
 use crate::needs::{urgency, Need, Needs};
 use crate::rng::Rng;
@@ -67,6 +68,8 @@ pub struct Agent {
     /// 0 for the founders, one more than the older parent for everyone else.
     pub generation: u32,
     pub baby_cooldown: u32,
+    /// Memories and feelings about other people.
+    pub mind: Mind,
 }
 
 impl Agent {
@@ -92,6 +95,7 @@ impl Agent {
             parents: None,
             generation: 0,
             baby_cooldown: 0,
+            mind: Mind::default(),
         }
     }
 

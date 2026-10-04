@@ -10,10 +10,12 @@ use crate::family::{
 };
 use crate::genome::Genome;
 use crate::housing::{district_of, DISTRICT_COUNT};
+use crate::memory::{Event, Memory};
 use crate::names::NameBook;
 use crate::needs::Need;
 use crate::rng::Rng;
-use std::collections::BTreeMap;
+use crate::talk::{converse, Act, Utterance};
+use std::collections::{BTreeMap, VecDeque};
 
 #[derive(Clone, Debug)]
 pub struct WorldConfig {
@@ -55,6 +57,9 @@ pub struct Stats {
     pub couples: usize,
     pub births: u64,
     pub max_generation: u32,
+    pub friends: f32,
+    pub conversations: u64,
+    pub gossips: u64,
 }
 
 /// Running totals of what each job has paid, for comparing jobs.
@@ -128,6 +133,9 @@ pub struct World {
     bonds: BTreeMap<(AgentId, AgentId), f32>,
     estates: Vec<Estate>,
     births: u64,
+    pub utterances: VecDeque<Utterance>,
+    conversations: u64,
+    gossips: u64,
 }
 
 const FOOD_REGROWTH: f32 = 0.002;
@@ -135,6 +143,7 @@ const SEARCH_RADIUS: i32 = 6;
 const STARVATION_LIMIT: u32 = 30;
 const QUIT_AFTER_UNPAID: u32 = 20;
 const COURT_REACH: i32 = 3;
+const UTTERANCE_LOG: usize = 200;
 const MOVE_OUT_SAVINGS: Coins = 60;
 
 impl World {
@@ -172,6 +181,9 @@ impl World {
             bonds: BTreeMap::new(),
             estates: Vec::new(),
             births: 0,
+            utterances: VecDeque::new(),
+            conversations: 0,
+            gossips: 0,
         };
         world.refresh_housing(&[]);
         world
@@ -269,6 +281,7 @@ impl World {
         for agent in agents.iter_mut().filter(|a| a.is_alive()) {
             self.live_one_tick(agent, &crowd, &mut labor, homeless);
         }
+        self.hold_conversations(&mut agents);
         self.court(&mut agents);
         self.births(&mut agents);
         self.distribute_estates(&mut agents);
@@ -360,9 +373,12 @@ impl World {
                 evicted.push(index);
             }
         }
+        let tick = self.tick;
         for agent in agents.iter_mut() {
             if agent.home.is_some_and(|h| evicted.contains(&h)) {
                 agent.home = None;
+                let shock = Memory::new(tick, Event::Evicted, None, -0.8, 1.0);
+                agent.mind.remember(shock);
             }
         }
     }
@@ -403,6 +419,7 @@ impl World {
     /// office. A household whose head died passes to the partner or the
     /// eldest resident.
     fn distribute_estates(&mut self, agents: &mut [Agent]) {
+        let tick = self.tick;
         for estate in std::mem::take(&mut self.estates) {
             let mut heirs: Vec<usize> = Vec::new();
             if let Some(p) = estate.partner.map(|p| p as usize) {
@@ -430,6 +447,8 @@ impl World {
             if let Some(p) = estate.partner.map(|p| p as usize) {
                 if agents[p].partner == Some(estate.id) {
                     agents[p].partner = None;
+                    let grief = Memory::new(tick, Event::Bereaved, Some(estate.id), -1.0, 1.0);
+                    agents[p].mind.remember(grief);
                 }
             }
             let Some(home) = estate.home else {
@@ -442,6 +461,47 @@ impl World {
                     .max_by_key(|a| (a.is_adult(), a.age))
                     .map(|a| a.id);
                 self.economy.realty.homes[home].tenant = heir;
+            }
+        }
+    }
+
+    /// People who chose to socialize and stand next to each other talk. Each
+    /// conversation changes what they remember and how they feel.
+    fn hold_conversations(&mut self, agents: &mut [Agent]) {
+        let talkers: Vec<usize> = agents
+            .iter()
+            .enumerate()
+            .filter(|(_, a)| a.is_alive() && a.action == Action::Socialize)
+            .map(|(i, _)| i)
+            .collect();
+        let mut busy = vec![false; agents.len()];
+        for (n, &i) in talkers.iter().enumerate() {
+            if busy[i] {
+                continue;
+            }
+            let partner = talkers[n + 1..]
+                .iter()
+                .copied()
+                .find(|&j| !busy[j] && self.near(agents[i].pos, agents[j].pos, 1));
+            let Some(j) = partner else {
+                continue;
+            };
+            busy[i] = true;
+            busy[j] = true;
+            let (s, l) = if (self.tick + i as u64).is_multiple_of(2) {
+                (i, j)
+            } else {
+                (j, i)
+            };
+            let (speaker, listener) = pair_mut(agents, s, l);
+            let utterance = converse(speaker, listener, self.tick, &mut self.rng);
+            self.conversations += 1;
+            if utterance.act == Act::Gossip {
+                self.gossips += 1;
+            }
+            self.utterances.push_back(utterance);
+            if self.utterances.len() > UTTERANCE_LOG {
+                self.utterances.pop_front();
             }
         }
     }
@@ -476,7 +536,10 @@ impl World {
                     agents[i].id.max(agents[j].id),
                 );
                 let bond = self.bonds.entry(key).or_insert(0.0);
-                *bond += bond_gain(&agents[i], &agents[j]);
+                let closeness = 1.0
+                    + agents[i].mind.affinity_for(agents[j].id).max(0.0)
+                    + agents[j].mind.affinity_for(agents[i].id).max(0.0);
+                *bond += bond_gain(&agents[i], &agents[j]) * closeness;
                 if *bond >= BOND_TO_PAIR {
                     ready.push((i, j, key));
                 }
@@ -487,6 +550,11 @@ impl World {
                 agents[i].partner = Some(agents[j].id);
                 agents[j].partner = Some(agents[i].id);
                 self.bonds.remove(&key);
+                let tick = self.tick;
+                let (a_id, b_id) = (agents[i].id, agents[j].id);
+                let love = |about| Memory::new(tick, Event::Paired, Some(about), 1.0, 1.0);
+                agents[i].mind.remember(love(b_id));
+                agents[j].mind.remember(love(a_id));
                 self.merge_households(agents, i, j);
             }
         }
@@ -572,8 +640,12 @@ impl World {
             child.parents = Some((a.id, b.id));
             child.generation = a.generation.max(b.generation) + 1;
             newborns.push(child);
-            agents[i].baby_cooldown = BIRTH_COOLDOWN;
-            agents[j].baby_cooldown = BIRTH_COOLDOWN;
+            let tick = self.tick;
+            for parent in [i, j] {
+                agents[parent].baby_cooldown = BIRTH_COOLDOWN;
+                let joy = Memory::new(tick, Event::Birth, Some(id), 0.9, 1.0);
+                agents[parent].mind.remember(joy);
+            }
         }
         self.births += newborns.len() as u64;
         agents.extend(newborns);
@@ -676,7 +748,10 @@ impl World {
         homeless: usize,
     ) {
         agent.needs.decay(&agent.genome);
-        agent.mood.update(&agent.needs, &agent.genome);
+        agent.mind.fade(&agent.genome);
+        agent
+            .mood
+            .update(&agent.needs, &agent.genome, agent.mind.afterglow());
 
         let percept = Percept {
             people_nearby: crowd
@@ -798,6 +873,9 @@ impl World {
             couples: alive.iter().filter(|a| a.partner.is_some()).count() / 2,
             births: self.births,
             max_generation: self.agents.iter().map(|a| a.generation).max().unwrap_or(0),
+            friends: alive.iter().map(|a| a.mind.friends() as f32).sum::<f32>() / count,
+            conversations: self.conversations,
+            gossips: self.gossips,
         }
     }
 
@@ -821,6 +899,8 @@ impl World {
             mix(agent.home.map_or(u64::MAX, |h| h as u64));
             mix(agent.partner.map_or(u64::MAX, u64::from));
             mix(u64::from(agent.generation));
+            mix(agent.mind.relations.len() as u64);
+            mix(agent.mind.memories.len() as u64);
         }
         for home in &self.economy.realty.homes {
             mix(home.rent as u64);

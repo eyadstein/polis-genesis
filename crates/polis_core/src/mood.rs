@@ -20,10 +20,11 @@ impl Mood {
         }
     }
 
-    pub fn update(&mut self, needs: &Needs, genome: &Genome) {
+    pub fn update(&mut self, needs: &Needs, genome: &Genome, afterglow: f32) {
         let neuroticism = genome.get(Gene::Neuroticism);
         let sensitivity = 0.6 + 0.8 * neuroticism;
-        let target_valence = ((needs.average() - 0.5) * 2.0 * sensitivity).clamp(-1.0, 1.0);
+        let target_valence =
+            ((needs.average() - 0.5) * 2.0 * sensitivity + 0.4 * afterglow).clamp(-1.0, 1.0);
         let target_arousal = ((1.0 - needs.lowest()) * (0.5 + 0.5 * neuroticism)).clamp(0.0, 1.0);
         self.valence += (target_valence - self.valence) * 0.1;
         self.arousal += (target_arousal - self.arousal) * 0.1;
