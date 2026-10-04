@@ -44,6 +44,18 @@ The head of a household pays the rent for everyone in it. When someone dies, mon
 
 Known limits: people have no sex, gender, or orientation yet, so a couple stands for any bond and a birth also stands for adoption. Orphans inherit and carry on as small households. There is still no extra work for a growing town, so inequality and homelessness keep rising.
 
+## Memory and conversation
+
+Every person keeps up to 24 memories and up to 12 relationships. A memory has an event, a person it is about, a feeling from painful to joyful, and a strength that fades each tick. Life changing events (falling in love, losing a partner, a birth, losing a home) fade four times slower. Anxious people hold on to bad memories and warm people to good ones. A repeat of the same event about the same person refreshes the old memory instead of adding a new one. Strong memories color mood.
+
+People who choose to socialize and stand next to each other talk. The speaker chooses an act from temperament and from how they feel about the listener: small talk, gossip, confiding, or quarrelling. Small talk builds friendship in proportion to compatibility. Gossip passes a memory about a third person to the listener, with a spin from the speaker's nature, and the listener's opinion of that third person moves in proportion to how much they trust the speaker. Friends pair up faster. The core only records what happened. It never calls a language model, so it stays fast and exactly repeatable.
+
+## Words
+
+The polis_mind crate turns what happened into speech. The default voice is rule based, free, and repeatable. With the ollama feature, a local model served by Ollama writes the lines instead, and the rule based voice answers whenever the server is missing, slow, or says anything that names the outside. The inner voice given to a model is first person: who you are, what you own, how you feel, what you remember. A filter checks every prompt and every reply, and tests check that no prompt in a grown town mentions anything from outside the world.
+
+Known limits: the Ollama path is tested against a stand in server, not a real model. Speech is not fed back into memory, and people do not yet act on what they hear beyond feeling about each other.
+
 ## Free stack
 
 Rust, SQLite, local models through open runtimes, GitHub Actions. No paid service is required.

@@ -20,6 +20,7 @@ Countries never go to war by themselves. Group conflict exists only as an option
 * People who choose homes by taste and budget
 * A food market whose price follows scarcity, and a town dividend that keeps coins circulating
 * Couples that form between compatible adults, children who inherit a mix of both genomes with mutation, growing up, households that share a home, inheritance of money and of the home
+* Memories that fade, feelings about other people, conversations that spread gossip, and speech from a free local model (Ollama) with a rule based voice as the default
 * Inequality (Gini), housing, wage, and district reports
 
 ## Principles
@@ -36,6 +37,11 @@ Countries never go to war by themselves. Group conflict exists only as an option
 
 Arguments are seed, ticks, and population.
 
+To let a local language model speak for the town, install Ollama (free), pull a model, and run:
+
+    $env:POLIS_OLLAMA_MODEL = "llama3.2"
+    cargo run --release -p polis_cli --features ollama -- 1 3000 200
+
 ## Test
 
     cargo test --all
@@ -47,7 +53,7 @@ Arguments are seed, ticks, and population.
 2. Economy, jobs, housing (done)
 2.5. Skill based pay, districts, home kinds and sizes, neighbors (done)
 3. Couples, children, life stages, inheritance (done)
-4. Memory, gossip, language model conversation layer
+4. Memory, gossip, and a language model conversation layer (done)
 5. Law, police, courts, prison
 6. Schools, belief systems, culture, sports
 7. Genesis survival layer and Epoch emergence

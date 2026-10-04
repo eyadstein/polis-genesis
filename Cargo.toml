@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/polis_core", "crates/polis_cli"]
+members = ["crates/polis_core", "crates/polis_mind", "crates/polis_cli"]
 
 [workspace.package]
 version = "0.1.0"

@@ -376,3 +376,80 @@ fn households_stay_within_their_homes_room_limit() {
         assert!(residents <= usize::from(home.rooms) * 2 + 4);
     }
 }
+
+#[test]
+fn people_talk_and_make_friends() {
+    let world = long_world(89);
+    let stats = world.stats();
+    assert!(stats.conversations > 0);
+    assert!(stats.friends > 0.0);
+}
+
+#[test]
+fn minds_stay_valid() {
+    use crate::memory::{MEMORY_LIMIT, RELATION_LIMIT};
+    let world = long_world(97);
+    for agent in &world.agents {
+        assert!(agent.mind.memories.len() <= MEMORY_LIMIT);
+        assert!(agent.mind.relations.len() <= RELATION_LIMIT);
+        for memory in &agent.mind.memories {
+            assert!((0.0..=1.0).contains(&memory.strength));
+            assert!((-1.0..=1.0).contains(&memory.valence));
+            assert!(memory
+                .about
+                .is_none_or(|x| (x as usize) < world.agents.len()));
+        }
+        for relation in &agent.mind.relations {
+            assert_ne!(relation.other, agent.id);
+            assert!((-1.0..=1.0).contains(&relation.affinity));
+            assert!((relation.other as usize) < world.agents.len());
+        }
+    }
+}
+
+#[test]
+fn the_conversation_log_is_bounded_and_makes_sense() {
+    let world = long_world(101);
+    assert!(!world.utterances.is_empty());
+    assert!(world.utterances.len() <= 200);
+    let mut last = 0;
+    for u in &world.utterances {
+        assert!(u.tick >= last);
+        last = u.tick;
+        assert_ne!(u.speaker, u.listener);
+        assert!(u.about.is_some() == (u.act == crate::talk::Act::Gossip));
+        assert!((-1.0..=1.0).contains(&u.warmth));
+    }
+}
+
+#[test]
+fn gossip_and_quarrels_both_happen() {
+    let world = long_world(103);
+    assert!(world.stats().gossips > 0);
+    assert!(world
+        .utterances
+        .iter()
+        .any(|u| u.act == crate::talk::Act::Smalltalk));
+}
+
+#[test]
+fn falling_in_love_is_remembered() {
+    use crate::memory::Event;
+    let world = long_world(107);
+    let mut checked = 0;
+    for agent in world
+        .agents
+        .iter()
+        .filter(|a| a.is_alive() && a.partner.is_some())
+    {
+        let partner = agent.partner.expect("has partner");
+        let remembered = agent
+            .mind
+            .memories
+            .iter()
+            .any(|m| m.event == Event::Paired && m.about == Some(partner));
+        assert!(remembered || agent.age > 4000);
+        checked += 1;
+    }
+    assert!(checked > 0);
+}

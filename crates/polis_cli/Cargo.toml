@@ -5,5 +5,9 @@ edition.workspace = true
 license.workspace = true
 description = "Command line runner for Polis Genesis"
 
+[features]
+ollama = ["polis_mind/ollama"]
+
 [dependencies]
 polis_core = { path = "../polis_core" }
+polis_mind = { path = "../polis_mind" }

@@ -3,6 +3,40 @@
 //! Usage: polis_cli [seed] [ticks] [population]
 
 use polis_core::{report, World, WorldConfig};
+use polis_mind::speaker::{RuleSpeaker, Speaker};
+
+/// Free local speech from Ollama when built with the `ollama` feature and
+/// `POLIS_OLLAMA_MODEL` is set. Otherwise the rule based voice.
+#[cfg(feature = "ollama")]
+fn pick_speaker() -> Box<dyn Speaker> {
+    match std::env::var("POLIS_OLLAMA_MODEL") {
+        Ok(model) => Box::new(polis_mind::ollama::OllamaSpeaker::new(
+            "http://127.0.0.1:11434",
+            &model,
+        )),
+        Err(_) => Box::new(RuleSpeaker::new()),
+    }
+}
+
+#[cfg(not(feature = "ollama"))]
+fn pick_speaker() -> Box<dyn Speaker> {
+    Box::new(RuleSpeaker::new())
+}
+
+fn print_social_life(world: &World) {
+    let s = world.stats();
+    println!(
+        "\nSocial life: {} conversations, {} pieces of gossip, {:.1} friends per person",
+        s.conversations, s.gossips, s.friends
+    );
+    let mut voice = pick_speaker();
+    println!("\nRecent conversations:");
+    for u in world.utterances.iter().rev().take(6).rev() {
+        let speaker = &world.agents[u.speaker as usize].name;
+        let listener = &world.agents[u.listener as usize].name;
+        println!("  {speaker} to {listener}: {}", voice.say(world, u));
+    }
+}
 
 fn arg(index: usize, default: u64) -> u64 {
     std::env::args()
@@ -49,6 +83,8 @@ fn main() {
             );
         }
     }
+
+    print_social_life(&world);
 
     println!("\nPay by job (average coins per paid tick of work):");
     for row in report::wages(&world) {
