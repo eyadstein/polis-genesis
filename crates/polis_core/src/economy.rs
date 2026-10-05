@@ -30,10 +30,21 @@ pub enum Job {
     Builder,
     Mechanic,
     Shopkeeper,
+    Officer,
+    Judge,
+    Lawyer,
 }
 
 impl Job {
-    pub const ALL: [Job; 4] = [Job::Farmer, Job::Builder, Job::Mechanic, Job::Shopkeeper];
+    pub const ALL: [Job; 7] = [
+        Job::Farmer,
+        Job::Builder,
+        Job::Mechanic,
+        Job::Shopkeeper,
+        Job::Officer,
+        Job::Judge,
+        Job::Lawyer,
+    ];
 
     pub fn index(self) -> usize {
         self as usize
@@ -46,6 +57,9 @@ impl Job {
             Job::Builder => (Gene::Craft, Gene::Athletics),
             Job::Mechanic => (Gene::Craft, Gene::Intellect),
             Job::Shopkeeper => (Gene::Charisma, Gene::Conscientiousness),
+            Job::Officer => (Gene::Athletics, Gene::Conscientiousness),
+            Job::Judge => (Gene::Intellect, Gene::Conscientiousness),
+            Job::Lawyer => (Gene::Intellect, Gene::Charisma),
         };
         0.5 * genome.get(a) + 0.5 * genome.get(b)
     }
@@ -57,6 +71,9 @@ impl Job {
             Job::Builder => 0.06,
             Job::Mechanic => 0.06,
             Job::Shopkeeper => 0.12,
+            Job::Officer => 0.03,
+            Job::Judge => 0.01,
+            Job::Lawyer => 0.015,
         }
     }
 
@@ -68,6 +85,9 @@ impl Job {
             Job::Builder => 6,
             Job::Mechanic => 8,
             Job::Shopkeeper => SHOPKEEPER_WAGE,
+            Job::Officer => 7,
+            Job::Judge => 10,
+            Job::Lawyer => 9,
         }
     }
 }
@@ -193,10 +213,42 @@ pub fn gini(holdings: &mut [Coins]) -> f32 {
     ((2.0 * weighted) / (n * total as f64) - (n + 1.0) / n) as f32
 }
 
+/// Tax money, and the public workers it pays: police, judges, and lawyers.
+#[derive(Clone, Debug)]
+pub struct Treasury {
+    pub cash: Coins,
+}
+
+impl Treasury {
+    pub fn new(cash: Coins) -> Self {
+        Self { cash }
+    }
+
+    /// Pay a public worker for one tick, if the treasury can afford it.
+    pub fn pay(&mut self, worker: &mut Coins, job: Job, fit: f32, experience: u32) -> Coins {
+        let wage = wage_for(job.base_wage(1), fit, experience, self.cash);
+        if self.cash < wage {
+            return 0;
+        }
+        self.cash -= wage;
+        *worker += wage;
+        wage
+    }
+}
+
+/// Savings below this are not taxed.
+pub const TAX_FREE: Coins = 150;
+
+/// Each rent period, one twentieth of savings above the allowance.
+pub fn wealth_tax(money: Coins) -> Coins {
+    (money - TAX_FREE).max(0) / 20
+}
+
 #[derive(Clone, Debug)]
 pub struct Economy {
     pub market: Market,
     pub realty: Realty,
+    pub treasury: Treasury,
 }
 
 impl Economy {
@@ -204,6 +256,7 @@ impl Economy {
         Self {
             market: Market::new(500),
             realty: Realty::generate(500, population * 6 / 10, rng),
+            treasury: Treasury::new(300),
         }
     }
 }

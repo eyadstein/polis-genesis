@@ -183,7 +183,13 @@ fn people_find_jobs_and_every_job_type_gets_filled() {
     assert!(world.stats().employed > 0);
     for job in crate::economy::Job::ALL {
         assert!(
-            world.agents.iter().any(|a| a.job == Some(job)) || job == crate::economy::Job::Builder
+            world.agents.iter().any(|a| a.job == Some(job))
+                || matches!(
+                    job,
+                    crate::economy::Job::Builder
+                        | crate::economy::Job::Judge
+                        | crate::economy::Job::Lawyer
+                )
         );
     }
 }
@@ -452,4 +458,76 @@ fn falling_in_love_is_remembered() {
         checked += 1;
     }
     assert!(checked > 0);
+}
+
+#[test]
+fn crime_police_and_courts_all_get_used() {
+    let world = long_world(109);
+    let stats = world.stats();
+    assert!(stats.crimes > 0);
+    assert!(stats.convictions > 0);
+    assert!(stats.convictions + world.justice.acquittals <= stats.crimes);
+}
+
+#[test]
+fn prisoners_do_not_work_roam_or_marry() {
+    let mut world = World::new(medium_config(113));
+    let mut saw_prisoner = false;
+    let mut jailed_before: BTreeSet<u32> = BTreeSet::new();
+    for _ in 0..8000 {
+        world.step();
+        let mut jailed_now = BTreeSet::new();
+        for agent in world.agents.iter().filter(|a| a.jailed_until.is_some()) {
+            saw_prisoner = true;
+            jailed_now.insert(agent.id);
+            assert!(agent.job.is_none());
+            assert!(agent.record >= 1);
+            if jailed_before.contains(&agent.id) {
+                assert_eq!(agent.action, Action::Rest);
+            }
+        }
+        jailed_before = jailed_now;
+    }
+    assert!(saw_prisoner);
+}
+
+#[test]
+fn the_town_treasury_is_never_negative_and_money_is_conserved() {
+    let mut world = World::new(medium_config(127));
+    let start = world.total_money();
+    for _ in 0..80 {
+        world.run(100);
+        assert!(world.economy.treasury.cash >= 0);
+        assert_eq!(world.total_money(), start);
+    }
+}
+
+#[test]
+fn convicts_carry_a_record_and_the_wronged_remember() {
+    use crate::memory::Event;
+    let world = long_world(131);
+    let convicts = world.agents.iter().filter(|a| a.record > 0).count();
+    assert!(convicts > 0);
+    let remembered = world.agents.iter().any(|a| {
+        a.mind
+            .memories
+            .iter()
+            .any(|m| m.event == Event::Wronged || m.event == Event::Jailed)
+    });
+    assert!(remembered);
+}
+
+#[test]
+fn police_judges_and_lawyers_are_adults_with_no_prison_sentence() {
+    use crate::economy::Job;
+    let mut world = World::new(medium_config(137));
+    for _ in 0..6000 {
+        world.step();
+        for agent in world.agents.iter().filter(|a| a.is_alive()) {
+            if matches!(agent.job, Some(Job::Officer | Job::Judge | Job::Lawyer)) {
+                assert!(agent.is_adult());
+                assert!(agent.jailed_until.is_none());
+            }
+        }
+    }
 }

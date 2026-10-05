@@ -56,6 +56,20 @@ The polis_mind crate turns what happened into speech. The default voice is rule 
 
 Known limits: the Ollama path is tested against a stand in server, not a real model. Speech is not fed back into memory, and people do not yet act on what they hear beyond feeling about each other.
 
+## Law and order
+
+Crime has causes. A hungry person who cannot afford food may steal, from a richer person standing next to them if there is one, otherwise from the shop. Bold and careless people are likelier, careful ones less so. A bitter quarrel between people who already dislike each other can turn into an assault, which is a counted event with a consequence and never a graphic scene. Police on the street lower the odds, up to one half.
+
+Every crime is reported. Officers work open cases oldest first, and a case that stays unsolved for five attempts goes cold. A solved case goes on the docket. Lawyers take up the defence of cases one at a time, and judges hear them in order. Evidence raises the chance of conviction and a defence lowers it. A fine is three times the loss plus ten, never more than the person has, and goes first to the victim as restitution. People who cannot pay are jailed for longer, and repeat offenders for longer still. Prisoners cannot work, roam, or marry, and the town feeds them. A record counts against a person when employers hire.
+
+The town treasury is funded by a wealth tax (one twentieth of savings above 150 coins each rent period) and by fines. It pays officers, judges, lawyers, and prison meals. Surplus above twice the reserve is shared out as a dividend. Money stays conserved.
+
+Known limits: the police always charge the true offender, so wrongful convictions are not modeled. Acquittals therefore free guilty people, which is why only about a third of cases end in conviction. There is no murder, no organized crime, and no parole. Public jobs open and close with the caseload, so staffing is uneven.
+
+## Languages
+
+Rust holds everything that must be fast and exactly repeatable. Python reads the JSON export for analysis. A TypeScript viewer, a Go server for a shared online world, WGSL shaders for large crowds, and SQL storage are planned, each only where it is the best fit.
+
 ## Free stack
 
 Rust, SQLite, local models through open runtimes, GitHub Actions. No paid service is required.

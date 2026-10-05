@@ -70,6 +70,10 @@ pub struct Agent {
     pub baby_cooldown: u32,
     /// Memories and feelings about other people.
     pub mind: Mind,
+    /// Number of times this person has been convicted.
+    pub record: u32,
+    /// When a prison sentence ends, if serving one.
+    pub jailed_until: Option<u64>,
 }
 
 impl Agent {
@@ -96,6 +100,8 @@ impl Agent {
             generation: 0,
             baby_cooldown: 0,
             mind: Mind::default(),
+            record: 0,
+            jailed_until: None,
         }
     }
 

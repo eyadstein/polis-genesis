@@ -21,6 +21,8 @@ Countries never go to war by themselves. Group conflict exists only as an option
 * A food market whose price follows scarcity, and a town dividend that keeps coins circulating
 * Couples that form between compatible adults, children who inherit a mix of both genomes with mutation, growing up, households that share a home, inheritance of money and of the home
 * Memories that fade, feelings about other people, conversations that spread gossip, and speech from a free local model (Ollama) with a rule based voice as the default
+* Crime from hunger, poverty and temper, police who solve cases, courts with judges and defence lawyers, fines with restitution, prison, criminal records, and a town treasury funded by a wealth tax
+* A JSON export of the whole town and a Python tool that reports on it
 * Inequality (Gini), housing, wage, and district reports
 
 ## Principles
@@ -42,6 +44,13 @@ To let a local language model speak for the town, install Ollama (free), pull a 
     $env:POLIS_OLLAMA_MODEL = "llama3.2"
     cargo run --release -p polis_cli --features ollama -- 1 3000 200
 
+## Export and analyze
+
+Add a file name as a fourth argument to write the whole town as JSON, then read it with the Python tool (standard library only):
+
+    cargo run --release -p polis_cli -- 1 8000 200 town.json
+    python tools/analyze.py town.json
+
 ## Test
 
     cargo test --all
@@ -54,7 +63,7 @@ To let a local language model speak for the town, install Ollama (free), pull a 
 2.5. Skill based pay, districts, home kinds and sizes, neighbors (done)
 3. Couples, children, life stages, inheritance (done)
 4. Memory, gossip, and a language model conversation layer (done)
-5. Law, police, courts, prison
+5. Law, police, courts, prison (done)
 6. Schools, belief systems, culture, sports
 7. Genesis survival layer and Epoch emergence
 8. Observer interface, replay, analytics

@@ -56,6 +56,8 @@ pub fn memory_sentence(world: &World, memory: &Memory) -> String {
         (Event::Bereaved, Some(n)) => format!("You lost {n}, and it still weighs on you."),
         (Event::Birth, Some(n)) => format!("{n} was born to you."),
         (Event::Evicted, _) => "You lost your home.".to_string(),
+        (Event::Wronged, Some(n)) => format!("{n} wronged you, and you have not forgotten."),
+        (Event::Jailed, _) => "You were locked away for what you did.".to_string(),
         _ => "Something stays with you.".to_string(),
     }
 }

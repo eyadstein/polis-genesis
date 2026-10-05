@@ -121,3 +121,38 @@ fn a_richer_employer_pays_more() {
 fn wages_never_fall_below_one_coin() {
     assert_eq!(wage_for(1, 0.0, 0, 0), 1);
 }
+
+#[test]
+fn the_treasury_pays_public_workers_only_what_it_has() {
+    let mut treasury = Treasury::new(0);
+    let mut officer = 0;
+    assert_eq!(treasury.pay(&mut officer, Job::Officer, 0.5, 0), 0);
+    assert_eq!(officer, 0);
+    treasury.cash = 100;
+    let wage = treasury.pay(&mut officer, Job::Officer, 0.5, 0);
+    assert!(wage > 0);
+    assert_eq!(officer, wage);
+    assert_eq!(treasury.cash, 100 - wage);
+}
+
+#[test]
+fn only_savings_above_the_allowance_are_taxed() {
+    assert_eq!(wealth_tax(0), 0);
+    assert_eq!(wealth_tax(TAX_FREE), 0);
+    assert_eq!(wealth_tax(TAX_FREE + 100), 5);
+    assert!(wealth_tax(10_000) > wealth_tax(1_000));
+    assert!(wealth_tax(10_000) < 10_000);
+}
+
+#[test]
+fn public_jobs_pay_and_suit_the_right_people() {
+    let mut genes = [0.5; GENE_COUNT];
+    genes[Gene::Intellect as usize] = 1.0;
+    genes[Gene::Charisma as usize] = 1.0;
+    let clever = Genome::from_genes(genes);
+    assert!(Job::Lawyer.fit(&clever) > Job::Officer.fit(&clever));
+    for job in [Job::Officer, Job::Judge, Job::Lawyer] {
+        assert!(job.base_wage(1) > 0);
+        assert!(job.share() > 0.0);
+    }
+}

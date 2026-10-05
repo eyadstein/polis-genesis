@@ -1,6 +1,8 @@
 //! Run a world from the terminal and print a summary.
 //!
-//! Usage: polis_cli [seed] [ticks] [population]
+//! Usage: polis_cli [seed] [ticks] [population] [export.json]
+
+mod export;
 
 use polis_core::{report, World, WorldConfig};
 use polis_mind::speaker::{RuleSpeaker, Speaker};
@@ -36,6 +38,14 @@ fn print_social_life(world: &World) {
         let listener = &world.agents[u.listener as usize].name;
         println!("  {speaker} to {listener}: {}", voice.say(world, u));
     }
+}
+
+fn print_justice(world: &World) {
+    let s = world.stats();
+    println!(
+        "\nJustice: {} crimes, {} convictions, {} acquittals, {} in prison, treasury {} coins",
+        s.crimes, s.convictions, world.justice.acquittals, s.jailed, s.treasury
+    );
 }
 
 fn arg(index: usize, default: u64) -> u64 {
@@ -85,6 +95,7 @@ fn main() {
     }
 
     print_social_life(&world);
+    print_justice(&world);
 
     println!("\nPay by job (average coins per paid tick of work):");
     for row in report::wages(&world) {
@@ -129,4 +140,12 @@ fn main() {
         );
     }
     println!("\nstate hash {:016x}", world.state_hash());
+
+    if let Some(path) = std::env::args().nth(4) {
+        let text = export::snapshot(&world).to_string();
+        match std::fs::write(&path, text) {
+            Ok(()) => println!("town written to {path}"),
+            Err(error) => eprintln!("could not write {path}: {error}"),
+        }
+    }
 }

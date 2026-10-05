@@ -22,20 +22,27 @@ pub enum Event {
     Bereaved,
     Birth,
     Evicted,
+    Wronged,
+    Jailed,
 }
 
 impl Event {
     /// Life changing events fade four times slower.
     fn fade_scale(self) -> f32 {
         match self {
-            Event::Paired | Event::Bereaved | Event::Birth | Event::Evicted => 0.25,
+            Event::Paired
+            | Event::Bereaved
+            | Event::Birth
+            | Event::Evicted
+            | Event::Wronged
+            | Event::Jailed => 0.25,
             _ => 1.0,
         }
     }
 
     /// Whether this event is worth passing on as gossip about someone.
     fn is_gossip_worthy(self) -> bool {
-        !matches!(self, Event::Bereaved | Event::Evicted)
+        !matches!(self, Event::Bereaved | Event::Evicted | Event::Jailed)
     }
 }
 

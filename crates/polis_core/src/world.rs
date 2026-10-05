@@ -8,8 +8,9 @@ use crate::family::{
     birth_chance, bond_gain, can_have_child, can_pair, inherit_split, pair_mut, BIRTH_COOLDOWN,
     BOND_TO_PAIR, MUTATION_RATE, MUTATION_SIZE,
 };
-use crate::genome::Genome;
+use crate::genome::{Gene, Genome};
 use crate::housing::{district_of, DISTRICT_COUNT};
+use crate::justice::{conviction_chance, deterrence, sentence_for, theft_urge, CrimeKind, Justice};
 use crate::memory::{Event, Memory};
 use crate::names::NameBook;
 use crate::needs::Need;
@@ -60,6 +61,10 @@ pub struct Stats {
     pub friends: f32,
     pub conversations: u64,
     pub gossips: u64,
+    pub crimes: u64,
+    pub convictions: u64,
+    pub jailed: usize,
+    pub treasury: Coins,
 }
 
 /// Running totals of what each job has paid, for comparing jobs.
@@ -134,6 +139,7 @@ pub struct World {
     estates: Vec<Estate>,
     births: u64,
     pub utterances: VecDeque<Utterance>,
+    pub justice: Justice,
     conversations: u64,
     gossips: u64,
 }
@@ -182,6 +188,7 @@ impl World {
             estates: Vec::new(),
             births: 0,
             utterances: VecDeque::new(),
+            justice: Justice::default(),
             conversations: 0,
             gossips: 0,
         };
@@ -246,6 +253,7 @@ impl World {
         self.housing_countdown -= 1;
         if self.rent_countdown == 0 {
             self.collect_rent(&mut agents);
+            self.collect_taxes(&mut agents);
             self.economy.realty.age_homes();
             self.refresh_housing(&agents);
             self.pay_dividends(&mut agents);
@@ -271,18 +279,27 @@ impl World {
         let mut labor = Labor::new(&agents, adults, building_needed, repair_needed);
         for agent in agents
             .iter_mut()
-            .filter(|a| a.is_alive() && a.is_adult() && a.job.is_none())
+            .filter(|a| a.is_alive() && a.is_adult() && a.job.is_none() && a.jailed_until.is_none())
         {
             self.try_hire(agent, &mut labor);
         }
+        if self.justice.docket.is_empty() {
+            for job in [Job::Judge, Job::Lawyer] {
+                labor.limit[job.index()] = labor.filled[job.index()];
+            }
+        }
         self.economy.market.service_left = 3 + 4 * labor.filled[Job::Shopkeeper.index()] as u32;
 
+        self.release_prisoners(&mut agents);
+        self.feed_prisoners(&mut agents);
         self.feed_children(&mut agents);
         for agent in agents.iter_mut().filter(|a| a.is_alive()) {
             self.live_one_tick(agent, &crowd, &mut labor, homeless);
         }
         self.hold_conversations(&mut agents);
         self.court(&mut agents);
+        self.commit_crimes(&mut agents);
+        self.apply_verdicts(&mut agents);
         self.births(&mut agents);
         self.distribute_estates(&mut agents);
         self.agents = agents;
@@ -393,10 +410,12 @@ impl World {
         }
         let market_share = surplus(self.economy.market.cash, RESERVE) / living;
         let realty_share = surplus(self.economy.realty.cash, RESERVE) / living;
+        let town_share = surplus(self.economy.treasury.cash, 2 * RESERVE) / living;
         self.economy.market.cash -= market_share * living;
         self.economy.realty.cash -= realty_share * living;
+        self.economy.treasury.cash -= town_share * living;
         for agent in agents.iter_mut().filter(|a| a.is_alive()) {
-            agent.money += market_share + realty_share;
+            agent.money += market_share + realty_share + town_share;
         }
     }
 
@@ -465,6 +484,173 @@ impl World {
         }
     }
 
+    /// Everyone with savings above a small allowance pays a share of the rest
+    /// to the town, which pays for police, judges, lawyers, and prison meals.
+    fn collect_taxes(&mut self, agents: &mut [Agent]) {
+        for agent in agents.iter_mut().filter(|a| a.is_alive()) {
+            let tax = crate::economy::wealth_tax(agent.money);
+            agent.money -= tax;
+            self.economy.treasury.cash += tax;
+        }
+    }
+
+    /// People let out of prison when their time is served.
+    fn release_prisoners(&mut self, agents: &mut [Agent]) {
+        for agent in agents.iter_mut() {
+            if agent.jailed_until.is_some_and(|until| until <= self.tick) {
+                agent.jailed_until = None;
+            }
+        }
+    }
+
+    /// The town feeds its prisoners, as long as the treasury can pay.
+    fn feed_prisoners(&mut self, agents: &mut [Agent]) {
+        for agent in agents.iter_mut().filter(|a| a.is_alive()) {
+            if agent.jailed_until.is_some()
+                && agent.needs.hunger < 0.6
+                && self
+                    .economy
+                    .market
+                    .sell_meal(&mut self.economy.treasury.cash)
+            {
+                agent.needs.add(Need::Hunger, MEAL_RESTORE);
+            }
+        }
+    }
+
+    /// Hungry, broke people sometimes steal: from a richer person standing
+    /// next to them, or else from the shop. Police on the street lower the
+    /// odds. Every theft is reported for the police to work on.
+    fn commit_crimes(&mut self, agents: &mut [Agent]) {
+        let adults = agents
+            .iter()
+            .filter(|a| a.is_alive() && a.is_adult())
+            .count();
+        let officers = agents
+            .iter()
+            .filter(|a| a.is_alive() && a.job == Some(Job::Officer))
+            .count();
+        let calm = deterrence(officers, adults);
+        let price = self.economy.market.price;
+        for i in 0..agents.len() {
+            let thief = &agents[i];
+            if !thief.is_alive() || !thief.is_adult() || thief.jailed_until.is_some() {
+                continue;
+            }
+            let urge = theft_urge(
+                thief.needs.hunger,
+                thief.money >= price,
+                thief.genome.get(Gene::RiskAppetite),
+                thief.genome.get(Gene::Conscientiousness),
+                calm,
+            );
+            if urge == 0.0 || !self.rng.chance(urge) {
+                continue;
+            }
+            let evidence = (0.5 - 0.3 * thief.genome.get(Gene::Intellect)).clamp(0.15, 0.8);
+            let (thief_id, here) = (thief.id, thief.pos);
+            let victim = (0..agents.len()).find(|&j| {
+                j != i
+                    && agents[j].is_alive()
+                    && agents[j].jailed_until.is_none()
+                    && agents[j].pos == here
+                    && agents[j].money >= 40
+            });
+            if let Some(j) = victim {
+                let loss = (agents[j].money / 5).min(10);
+                agents[j].money -= loss;
+                agents[i].money += loss;
+                let victim_id = agents[j].id;
+                self.justice.report(
+                    self.tick,
+                    CrimeKind::Theft,
+                    thief_id,
+                    Some(victim_id),
+                    loss,
+                    evidence + 0.1,
+                );
+            } else if self.economy.market.stock > 0 {
+                self.economy.market.stock -= 1;
+                agents[i].needs.add(Need::Hunger, MEAL_RESTORE);
+                self.justice
+                    .report(self.tick, CrimeKind::Theft, thief_id, None, price, evidence);
+            }
+        }
+    }
+
+    /// A bitter quarrel between people who already dislike each other can
+    /// turn into a fight. The victim is shaken and remembers it.
+    fn maybe_assault(&mut self, agents: &mut [Agent], s: usize, l: usize) {
+        let attacker = &agents[s];
+        let hot = attacker.genome.get(Gene::Neuroticism) > 0.7
+            && attacker.genome.get(Gene::Agreeableness) < 0.35
+            && attacker.mind.affinity_for(agents[l].id) < -0.3;
+        if !hot || !self.rng.chance(0.2) {
+            return;
+        }
+        let (attacker_id, victim_id) = (attacker.id, agents[l].id);
+        agents[l].needs.add(Need::Energy, -0.25);
+        agents[l].mind.adjust_affinity(attacker_id, -0.3, self.tick);
+        let hurt = Memory::new(self.tick, Event::Wronged, Some(attacker_id), -1.0, 0.9);
+        agents[l].mind.remember(hurt);
+        self.justice.report(
+            self.tick,
+            CrimeKind::Assault,
+            attacker_id,
+            Some(victim_id),
+            0,
+            0.6,
+        );
+    }
+
+    /// Carry out the verdicts of the judges: fines, restitution to victims,
+    /// and prison. All the money moved is accounted for.
+    fn apply_verdicts(&mut self, agents: &mut [Agent]) {
+        for (case, judge_skill) in std::mem::take(&mut self.justice.hearings) {
+            let crime = case.crime;
+            let guilty = self.rng.chance(conviction_chance(
+                crime.evidence,
+                case.defended,
+                judge_skill,
+            ));
+            if !guilty {
+                self.justice.acquittals += 1;
+                continue;
+            }
+            let id = crime.accused as usize;
+            if !agents[id].is_alive() {
+                continue;
+            }
+            let sentence =
+                sentence_for(crime.kind, crime.loss, agents[id].money, agents[id].record);
+            agents[id].money -= sentence.fine;
+            let back = sentence.fine.min(crime.loss);
+            match crime.victim {
+                Some(v) if agents[v as usize].is_alive() => agents[v as usize].money += back,
+                Some(_) => self.economy.treasury.cash += back,
+                None => self.economy.market.cash += back,
+            }
+            self.economy.treasury.cash += sentence.fine - back;
+            let tick = self.tick;
+            let convict = &mut agents[id];
+            convict.record += 1;
+            if sentence.prison_ticks > 0 {
+                convict.jailed_until = Some(tick + sentence.prison_ticks);
+                convict.job = None;
+            }
+            let shame = Memory::new(tick, Event::Jailed, None, -0.7, 1.0);
+            convict.mind.remember(shame);
+            if let Some(v) = crime.victim.filter(|&v| agents[v as usize].is_alive()) {
+                let wronged = Memory::new(tick, Event::Wronged, Some(crime.accused), -1.0, 0.9);
+                agents[v as usize].mind.remember(wronged);
+                agents[v as usize]
+                    .mind
+                    .adjust_affinity(crime.accused, -0.5, tick);
+            }
+            self.justice.convictions += 1;
+        }
+    }
+
     /// People who chose to socialize and stand next to each other talk. Each
     /// conversation changes what they remember and how they feel.
     fn hold_conversations(&mut self, agents: &mut [Agent]) {
@@ -495,6 +681,9 @@ impl World {
             };
             let (speaker, listener) = pair_mut(agents, s, l);
             let utterance = converse(speaker, listener, self.tick, &mut self.rng);
+            if utterance.act == Act::Quarrel {
+                self.maybe_assault(agents, s, l);
+            }
             self.conversations += 1;
             if utterance.act == Act::Gossip {
                 self.gossips += 1;
@@ -610,6 +799,9 @@ impl World {
                 continue;
             }
             let (a, b) = (&agents[i], &agents[j]);
+            if a.jailed_until.is_some() || b.jailed_until.is_some() {
+                continue;
+            }
             let Some(home) = a.home.filter(|h| b.home == Some(*h)) else {
                 continue;
             };
@@ -687,7 +879,8 @@ impl World {
     fn try_hire(&mut self, agent: &mut Agent, labor: &mut Labor) {
         let mut best: Option<(Job, f32)> = None;
         for job in Job::ALL.into_iter().filter(|j| labor.has_opening(*j)) {
-            let score = job.fit(&agent.genome) + self.rng.next_f32() * 0.1;
+            let score =
+                job.fit(&agent.genome) + self.rng.next_f32() * 0.1 - 0.15 * agent.record as f32;
             if best.is_none_or(|(_, top)| score > top) {
                 best = Some((job, score));
             }
@@ -725,6 +918,38 @@ impl World {
                 .economy
                 .realty
                 .pay_mechanic(&mut agent.money, fit, experience),
+            Job::Officer => {
+                let wage = self
+                    .economy
+                    .treasury
+                    .pay(&mut agent.money, job, fit, experience);
+                if wage > 0 {
+                    self.justice.investigate(fit, &mut self.rng);
+                }
+                wage
+            }
+            Job::Judge if self.justice.docket.is_empty() => 0,
+            Job::Judge => {
+                let wage = self
+                    .economy
+                    .treasury
+                    .pay(&mut agent.money, job, fit, experience);
+                if wage > 0 {
+                    self.justice.take_for_hearing(fit);
+                }
+                wage
+            }
+            Job::Lawyer if !self.justice.has_undefended() => 0,
+            Job::Lawyer => {
+                let wage = self
+                    .economy
+                    .treasury
+                    .pay(&mut agent.money, job, fit, experience);
+                if wage > 0 {
+                    self.justice.defend();
+                }
+                wage
+            }
         };
         agent.needs.add(Need::Purpose, 0.03);
         if wage > 0 {
@@ -764,7 +989,11 @@ impl World {
             employed: agent.job.is_some(),
             money_pressure: money_pressure(agent.money),
         };
-        agent.action = agent.choose_action(&percept, &mut self.rng);
+        agent.action = if agent.jailed_until.is_some() {
+            Action::Rest
+        } else {
+            agent.choose_action(&percept, &mut self.rng)
+        };
 
         match agent.action {
             Action::Eat => {
@@ -821,7 +1050,7 @@ impl World {
     /// All coins in the world. This never changes.
     pub fn total_money(&self) -> Coins {
         let held: Coins = self.agents.iter().map(|a| a.money).sum();
-        held + self.economy.market.cash + self.economy.realty.cash
+        held + self.economy.market.cash + self.economy.realty.cash + self.economy.treasury.cash
     }
 
     /// Average rent actually being paid.
@@ -876,6 +1105,10 @@ impl World {
             friends: alive.iter().map(|a| a.mind.friends() as f32).sum::<f32>() / count,
             conversations: self.conversations,
             gossips: self.gossips,
+            crimes: self.justice.crimes,
+            convictions: self.justice.convictions,
+            jailed: alive.iter().filter(|a| a.jailed_until.is_some()).count(),
+            treasury: self.economy.treasury.cash,
         }
     }
 
@@ -901,6 +1134,8 @@ impl World {
             mix(u64::from(agent.generation));
             mix(agent.mind.relations.len() as u64);
             mix(agent.mind.memories.len() as u64);
+            mix(u64::from(agent.record));
+            mix(agent.jailed_until.unwrap_or(0));
         }
         for home in &self.economy.realty.homes {
             mix(home.rent as u64);
@@ -908,6 +1143,8 @@ impl World {
         }
         mix(self.economy.market.cash as u64);
         mix(self.economy.realty.cash as u64);
+        mix(self.economy.treasury.cash as u64);
+        mix(self.justice.crimes);
         hash
     }
 }
