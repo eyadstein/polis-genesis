@@ -1,16 +1,13 @@
 import { mountLoader, mountTown } from "./app";
-import { parseTown } from "./load";
+import { loadDefaultTown } from "./start";
 
 const root = document.getElementById("app");
 
 async function start(target: HTMLElement): Promise<void> {
   try {
-    const response = await fetch("/town.json");
-    if (!response.ok) {
-      mountLoader(target);
-      return;
-    }
-    mountTown(target, parseTown(await response.text()));
+    const town = await loadDefaultTown();
+    if (town) mountTown(target, town);
+    else mountLoader(target);
   } catch (error) {
     mountLoader(target, error instanceof Error ? error.message : "");
   }

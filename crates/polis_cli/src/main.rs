@@ -3,6 +3,7 @@
 //! Usage: polis_cli [seed] [ticks] [population] [export.json]
 
 mod export;
+mod files;
 
 use polis_core::{report, World, WorldConfig};
 use polis_mind::speaker::{RuleSpeaker, Speaker};
@@ -145,7 +146,7 @@ fn main() {
 
     if let Some(path) = std::env::args().nth(4) {
         let text = export::snapshot(&world, &history).to_string();
-        match std::fs::write(&path, text) {
+        match files::write_file(&path, &text) {
             Ok(()) => println!("town written to {path}"),
             Err(error) => eprintln!("could not write {path}: {error}"),
         }
