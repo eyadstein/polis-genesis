@@ -73,3 +73,9 @@ Rust holds everything that must be fast and exactly repeatable. Python reads the
 ## Free stack
 
 Rust, SQLite, local models through open runtimes, GitHub Actions. No paid service is required.
+
+## Viewer
+
+The viewer is plain TypeScript with no framework, built with Vite and tested with Vitest. It reads the JSON export (format version 2) and checks every field when loading, so a file from another version fails with a clear message. All text from the file is escaped before it reaches the page. The map is always drawn on a fixed light paper color so every dot keeps at least 3 to 1 contrast, and tests check text contrast for WCAG AA in light and dark themes. Controls have names, tables have headers, and the tabs work with the arrow keys. React is left out for now because the page is small, and it can be added when the interface grows.
+
+Known limits: the viewer shows one saved moment, not a live town. It has been tested in a simulated browser, not in every real one.

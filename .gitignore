@@ -1,3 +1,6 @@
 target/
 .DS_Store
 *.log
+viewer/node_modules/
+viewer/dist/
+viewer/public/town.json

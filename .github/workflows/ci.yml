@@ -12,3 +12,13 @@ jobs:
       - run: cargo clippy --all-targets --all-features -- -D warnings
       - run: cargo test --all --all-features
       - run: python3 -m unittest discover -s tools
+      - run: cargo run --release -p polis_cli -- 1 3000 120 viewer/public/town.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+        working-directory: viewer
+      - run: npm run build
+        working-directory: viewer
+      - run: npm test
+        working-directory: viewer

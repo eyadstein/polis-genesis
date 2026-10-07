@@ -69,3 +69,14 @@ Add a file name as a fourth argument to write the whole town as JSON, then read 
 8. Observer interface, replay, analytics
 
 See docs/DESIGN.md for architecture decisions.
+
+## Viewer
+
+A browser viewer written in TypeScript reads the town file. You need Node.js (free, from nodejs.org).
+
+    cargo run --release -p polis_cli -- 1 8000 200 viewer/public/town.json
+    cd viewer
+    npm install
+    npm run dev
+
+Open the address it prints. The viewer shows a map of the town, a searchable list of people with their life stories and families, charts over time, and the recent conversations. Run its tests with `npm test`.

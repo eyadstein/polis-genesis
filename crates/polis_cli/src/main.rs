@@ -63,6 +63,7 @@ fn main() {
     };
     let ticks = arg(2, 3000);
     let mut world = World::new(config);
+    let mut history = vec![export::history_point(&world)];
 
     println!(
         "tick   alive  kids  pairs  births  gen  starved  money  gini  jobs  homeless  vacant  rent"
@@ -74,6 +75,7 @@ fn main() {
         until_report -= 1;
         if until_report == 0 {
             until_report = report_every;
+            history.push(export::history_point(&world));
             let s = world.stats();
             println!(
                 "{:<6} {:<6} {:<5} {:<6} {:<7} {:<4} {:<8} {:<6.0} {:<5.2} {:<5} {:<9} {:<7} {:<5.1}",
@@ -142,7 +144,7 @@ fn main() {
     println!("\nstate hash {:016x}", world.state_hash());
 
     if let Some(path) = std::env::args().nth(4) {
-        let text = export::snapshot(&world).to_string();
+        let text = export::snapshot(&world, &history).to_string();
         match std::fs::write(&path, text) {
             Ok(()) => println!("town written to {path}"),
             Err(error) => eprintln!("could not write {path}: {error}"),
