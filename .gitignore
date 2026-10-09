@@ -4,3 +4,4 @@ target/
 viewer/node_modules/
 viewer/dist/
 viewer/public/town.json
+viewer/public/replay.json

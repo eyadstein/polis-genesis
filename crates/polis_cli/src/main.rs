@@ -1,8 +1,9 @@
 //! Run a world from the terminal and print a summary.
 //!
-//! Usage: polis_cli [seed] [ticks] [population] [export.json]
+//! Usage: polis_cli [seed] [ticks] [population] [export.json] [replay.json] [frame_every]
 
 mod export;
+mod replay;
 mod files;
 
 use polis_core::{report, World, WorldConfig};
@@ -65,6 +66,7 @@ fn main() {
     let ticks = arg(2, 3000);
     let mut world = World::new(config);
     let mut history = vec![export::history_point(&world)];
+    let mut recorder = replay::Recorder::new(arg(6, 10));
 
     println!(
         "tick   alive  kids  pairs  births  gen  starved  money  gini  jobs  homeless  vacant  rent"
@@ -73,6 +75,7 @@ fn main() {
     let mut until_report = report_every;
     for _ in 0..ticks {
         world.step();
+        recorder.observe(&world);
         until_report -= 1;
         if until_report == 0 {
             until_report = report_every;
@@ -148,6 +151,15 @@ fn main() {
         let text = export::snapshot(&world, &history).to_string();
         match files::write_file(&path, &text) {
             Ok(()) => println!("town written to {path}"),
+            Err(error) => eprintln!("could not write {path}: {error}"),
+        }
+    }
+
+    if let Some(path) = std::env::args().nth(5) {
+        let frames = recorder.frame_count();
+        let text = recorder.finish(&world).to_string();
+        match files::write_file(&path, &text) {
+            Ok(()) => println!("replay of {frames} frames written to {path}"),
             Err(error) => eprintln!("could not write {path}: {error}"),
         }
     }
