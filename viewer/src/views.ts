@@ -1,4 +1,5 @@
 import { esc, barChart, historyChart } from "./chart";
+import { faceFor, faceSvg, type Face } from "./faces";
 import { legend, mapSvg, type MapMode } from "./map";
 import {
   familyOf,
@@ -178,6 +179,20 @@ function list(label: string, people: Person[]): string {
   return `<dt>${label}</dt><dd>${people.map((p) => nameButton(p)).join(", ")}</dd>`;
 }
 
+const faceCaches = new WeakMap<Person[], Map<number, Face>>();
+
+/** Portrait for one person, cached per town. */
+export function portraitHtml(town: Town, person: Person): string {
+  let cache = faceCaches.get(town.people);
+  if (!cache) {
+    cache = new Map();
+    faceCaches.set(town.people, cache);
+  }
+  const byId = new Map(town.people.map((p) => [p.id, p]));
+  const face = faceFor(person.id, byId, cache);
+  return `<div class="portrait">${faceSvg(face, 96, years(person.age))}</div>`;
+}
+
 export function detailHtml(town: Town, id: number | null): string {
   const person = id === null ? undefined : town.people[id];
   if (!person) {
@@ -203,7 +218,7 @@ export function detailHtml(town: Town, id: number | null): string {
   const voice = person.alive
     ? `<h3>In their own words</h3><p class="voice">${esc(person.voice ?? "")}</p>`
     : `<p>${esc(person.name)} has died.</p>`;
-  return `<h2>${esc(person.name)}</h2>
+  return `${portraitHtml(town, person)}<h2>${esc(person.name)}</h2>
 <dl class="facts">${rows}</dl>
 ${voice}
 <h3>Family</h3>
