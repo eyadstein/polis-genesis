@@ -49,7 +49,7 @@ impl Recorder {
         if let Some(u) = world.utterances.back() {
             self.last_talk_tick = Some(u.tick);
         }
-        if world.tick % self.every == 0 {
+        if world.tick.is_multiple_of(self.every) {
             self.frames.push(frame(world));
         }
     }
