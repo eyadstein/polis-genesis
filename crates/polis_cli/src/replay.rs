@@ -43,8 +43,7 @@ impl Recorder {
         for u in world.utterances.iter() {
             if self.last_talk_tick.is_none_or(|t| u.tick > t) {
                 let text = self.voice.say(world, u);
-                self.talk
-                    .push(json!([u.tick, u.speaker, u.listener, text]));
+                self.talk.push(json!([u.tick, u.speaker, u.listener, text]));
             }
         }
         if let Some(u) = world.utterances.back() {
@@ -122,7 +121,9 @@ mod tests {
         let json = rec.finish(&world);
         assert_eq!(json["version"], REPLAY_VERSION);
         let frames = json["frames"].as_array().expect("frames");
-        assert!(frames.iter().all(|f| !f["p"].as_array().unwrap().is_empty()));
+        assert!(frames
+            .iter()
+            .all(|f| !f["p"].as_array().unwrap().is_empty()));
         assert!(!json["talk"].as_array().expect("talk").is_empty());
     }
 

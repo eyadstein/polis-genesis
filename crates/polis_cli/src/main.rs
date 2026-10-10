@@ -3,8 +3,8 @@
 //! Usage: polis_cli [seed] [ticks] [population] [export.json] [replay.json] [frame_every]
 
 mod export;
-mod replay;
 mod files;
+mod replay;
 
 use polis_core::{report, World, WorldConfig};
 use polis_mind::speaker::{RuleSpeaker, Speaker};
