@@ -1,0 +1,234 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #060a18;
+  overflow: hidden;
+  font-family: system-ui, sans-serif;
+  color: #f2efe6;
+}
+
+#world {
+  position: fixed;
+  inset: 0;
+}
+
+.world-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.world-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hud-panel {
+  position: absolute;
+  background: rgba(14, 17, 28, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 10px 14px;
+  backdrop-filter: blur(6px);
+}
+
+.hud-clock {
+  top: 14px;
+  left: 14px;
+}
+
+.hud-time {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-phase {
+  color: #c9c4b4;
+  font-size: 0.85rem;
+}
+
+.hud-bar {
+  left: 14px;
+  right: 14px;
+  bottom: 14px;
+}
+
+.hud-scrub {
+  width: 100%;
+  margin: 0 0 8px;
+}
+
+.hud-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hud-button,
+.hud-select {
+  background: #232a40;
+  color: #f2efe6;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hud-button:hover,
+.hud-select:hover {
+  background: #2f3956;
+}
+
+.hud-button:focus-visible,
+.hud-select:focus-visible,
+.hud-scrub:focus-visible {
+  outline: 2px solid #ffd98a;
+  outline-offset: 2px;
+}
+
+.hud-card {
+  top: 14px;
+  right: 14px;
+  width: 260px;
+}
+
+.hud-card h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.hud-sub {
+  margin: 2px 0 10px;
+  color: #c9c4b4;
+  font-size: 0.85rem;
+}
+
+.hud-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  margin: 0 0 12px;
+}
+
+.hud-facts dt {
+  color: #c9c4b4;
+}
+
+.hud-facts dd {
+  margin: 0;
+}
+
+.world-error {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.hud-news {
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(640px, calc(100vw - 620px));
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  border-color: rgba(255, 217, 138, 0.5);
+}
+
+.hud-news-quiet {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #c9c4b4;
+}
+
+.hud-news-tag {
+  background: #b5372b;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.hud-feed {
+  left: 14px;
+  bottom: 128px;
+  width: 380px;
+  max-height: 34vh;
+  overflow: auto;
+}
+
+.hud-feed h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.hud-line {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.hud-line time {
+  color: #9d98a8;
+  font-variant-numeric: tabular-nums;
+}
+
+.hud-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: #8fd0ff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.hud-link:focus-visible {
+  outline: 2px solid #ffd98a;
+  outline-offset: 2px;
+}
+
+.hud-portrait {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 8px;
+  border-radius: 50%;
+  background: #232a40;
+  overflow: hidden;
+}
+
+.hud-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.hud-chip {
+  background: #2f3956;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 0.8rem;
+}
+
+.hud-floor {
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+
+.hud-floor strong {
+  display: block;
+  color: #ffd98a;
+}
+
+.hud-card {
+  max-height: calc(100vh - 180px);
+  overflow: auto;
+}
