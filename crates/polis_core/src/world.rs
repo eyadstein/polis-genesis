@@ -306,6 +306,27 @@ impl World {
         self.tick += 1;
     }
 
+    /// Strangers arrive in town: grown up, with new faces and genes, a little
+    /// money, no home and no friends. Returns their ids.
+    pub fn add_newcomers(&mut self, count: u32) -> Vec<AgentId> {
+        let mut ids = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            let id = self.agents.len() as AgentId;
+            let genome = Genome::random(&mut self.rng);
+            let name = self.names.fresh(&mut self.rng);
+            let pos = (
+                self.rng.below(self.width as u32) as i32,
+                self.rng.below(self.height as u32) as i32,
+            );
+            let money = 30 + Coins::from(self.rng.below(50));
+            let mut person = Agent::new(id, name, genome, pos, money);
+            person.age = ADULT_AGE + self.rng.below(8_000);
+            self.agents.push(person);
+            ids.push(id);
+        }
+        ids
+    }
+
     pub fn run(&mut self, ticks: u64) {
         for _ in 0..ticks {
             self.step();

@@ -1,10 +1,13 @@
 //! Run a world from the terminal and print a summary.
 //!
 //! Usage: polis_cli [seed] [ticks] [population] [export.json] [replay.json] [frame_every]
+//!        polis_cli serve [seed] [population] [port]    a town that never ends
 
 mod export;
 mod files;
+mod live;
 mod replay;
+mod serve;
 
 use polis_core::{report, World, WorldConfig};
 use polis_mind::speaker::{RuleSpeaker, Speaker};
@@ -57,7 +60,25 @@ fn arg(index: usize, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+/// `polis_cli serve [seed] [population] [port]`
+fn serve() {
+    let config = WorldConfig {
+        seed: arg(2, 1),
+        population: arg(3, 200) as u32,
+        ..WorldConfig::default()
+    };
+    let port = u16::try_from(arg(4, u64::from(serve::DEFAULT_PORT))).unwrap_or(serve::DEFAULT_PORT);
+    if let Err(message) = serve::run(config, port) {
+        eprintln!("{message}");
+        std::process::exit(1);
+    }
+}
+
 fn main() {
+    if std::env::args().nth(1).as_deref() == Some("serve") {
+        serve();
+        return;
+    }
     let config = WorldConfig {
         seed: arg(1, 1),
         population: arg(3, 200) as u32,

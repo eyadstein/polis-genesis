@@ -7,9 +7,9 @@ use serde_json::{json, Value};
 
 pub const REPLAY_VERSION: u32 = 1;
 
-const ACTIONS: [&str; 5] = ["Eat", "Rest", "Socialize", "Work", "Wander"];
+pub const ACTIONS: [&str; 5] = ["Eat", "Rest", "Socialize", "Work", "Wander"];
 
-fn action_code(action: Action) -> usize {
+pub fn action_code(action: Action) -> u8 {
     match action {
         Action::Eat => 0,
         Action::Rest => 1,
@@ -19,12 +19,49 @@ fn action_code(action: Action) -> usize {
     }
 }
 
+/// One spoken line: tick, speaker, listener, and the words.
+pub type TalkLine = (u64, u32, u32, String);
+
+/// Notices new speech after each step, so no line is taken twice.
+pub struct TalkTap {
+    voice: RuleSpeaker,
+    last_tick: Option<u64>,
+}
+
+impl TalkTap {
+    pub fn new() -> Self {
+        Self {
+            voice: RuleSpeaker::new(),
+            last_tick: None,
+        }
+    }
+
+    /// Call after every step. Returns the lines spoken since the last call.
+    pub fn collect(&mut self, world: &World) -> Vec<TalkLine> {
+        let mut lines = Vec::new();
+        for u in world.utterances.iter() {
+            if self.last_tick.is_none_or(|t| u.tick > t) {
+                lines.push((u.tick, u.speaker, u.listener, self.voice.say(world, u)));
+            }
+        }
+        if let Some(u) = world.utterances.back() {
+            self.last_tick = Some(u.tick);
+        }
+        lines
+    }
+}
+
+impl Default for TalkTap {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct Recorder {
     every: u64,
     frames: Vec<Value>,
     talk: Vec<Value>,
-    voice: RuleSpeaker,
-    last_talk_tick: Option<u64>,
+    tap: TalkTap,
 }
 
 impl Recorder {
@@ -33,21 +70,14 @@ impl Recorder {
             every: every.max(1),
             frames: Vec::new(),
             talk: Vec::new(),
-            voice: RuleSpeaker::new(),
-            last_talk_tick: None,
+            tap: TalkTap::new(),
         }
     }
 
     /// Call after every step. Keeps new lines of speech, and a frame on the beat.
     pub fn observe(&mut self, world: &World) {
-        for u in world.utterances.iter() {
-            if self.last_talk_tick.is_none_or(|t| u.tick > t) {
-                let text = self.voice.say(world, u);
-                self.talk.push(json!([u.tick, u.speaker, u.listener, text]));
-            }
-        }
-        if let Some(u) = world.utterances.back() {
-            self.last_talk_tick = Some(u.tick);
+        for (tick, speaker, listener, text) in self.tap.collect(world) {
+            self.talk.push(json!([tick, speaker, listener, text]));
         }
         if world.tick.is_multiple_of(self.every) {
             self.frames.push(frame(world));
@@ -144,5 +174,23 @@ mod tests {
         let (wa, a) = run(120);
         let (wb, b) = run(120);
         assert_eq!(a.finish(&wa), b.finish(&wb));
+    }
+
+    #[test]
+    fn the_tap_hands_out_each_line_once() {
+        let mut world = World::new(WorldConfig {
+            seed: 3,
+            population: 40,
+            ..WorldConfig::default()
+        });
+        let mut tap = TalkTap::new();
+        let mut all = Vec::new();
+        for _ in 0..200 {
+            world.step();
+            all.extend(tap.collect(&world));
+        }
+        assert!(!all.is_empty());
+        assert!(all.windows(2).all(|w| w[0].0 <= w[1].0));
+        assert!(tap.collect(&world).is_empty());
     }
 }
