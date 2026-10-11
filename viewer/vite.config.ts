@@ -9,6 +9,9 @@ export default defineConfig({
       input: { main: page("index.html"), world: page("world.html") },
     },
   },
+  server: {
+    proxy: { "/api": "http://127.0.0.1:8787" },
+  },
   test: {
     environment: "jsdom",
     include: ["test/**/*.test.ts"],

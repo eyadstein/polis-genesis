@@ -255,3 +255,10 @@ export function workersOf(layout: Layout, town: Town, site: Workplace): Person[]
   const mine = sites.indexOf(site);
   return town.people.filter((p) => p.alive && p.job === site.job).filter((_, i) => i % Math.max(1, sites.length) === mine);
 }
+
+/** Changes when the buildings, who lives in them, or the workplaces change. */
+export function layoutSignature(layout: Layout): string {
+  const houses = layout.houses.map((h) => `${h.id ?? "x"}:${h.kind}:${h.occupants.length}`).join(",");
+  const work = layout.workplaces.map((w) => `${w.job}@${w.x},${w.z}`).join(",");
+  return `${houses}|${work}`;
+}

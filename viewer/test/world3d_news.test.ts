@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveNews, newsAt } from "../src/world3d/news";
+import { NewsFeed, deriveNews, describe as say, newsAt } from "../src/world3d/news";
 import { ReplayPlayer, type Replay } from "../src/world3d/replay";
 import { parseTraits } from "../src/world3d/traits";
 import type { Person, Town } from "../src/types";
@@ -29,7 +29,7 @@ const replay: Replay = {
 };
 
 describe("news", () => {
-  const items = deriveNews(new ReplayPlayer(replay), town);
+  const items = deriveNews(new ReplayPlayer(replay));
   it("reports births, deaths and prison", () => {
     const kinds = items.map((i) => `${i.tick}:${i.kind}`);
     expect(kinds).toContain("20:prison");
@@ -38,9 +38,9 @@ describe("news", () => {
     expect(kinds).toContain("30:release");
   });
   it("names the people", () => {
-    expect(items.find((i) => i.kind === "birth")?.text).toContain("Cy, child of Ana and Bo");
-    expect(items.find((i) => i.kind === "death")?.text).toContain("Di has died");
-    expect(items.find((i) => i.kind === "prison")?.text).toBe("Ana was sent to prison.");
+    expect(say(items.find((i) => i.kind === "birth")!, town)).toContain("Cy, child of Ana and Bo");
+    expect(say(items.find((i) => i.kind === "death")!, town)).toContain("Di has died");
+    expect(say(items.find((i) => i.kind === "prison")!, town)).toBe("Ana was sent to prison.");
   });
   it("shows a headline only for a while", () => {
     expect(newsAt(items, 15)).toBeNull();
@@ -59,5 +59,51 @@ describe("traits", () => {
   it("copes with nothing", () => {
     expect(parseTraits(null)).toEqual([]);
     expect(parseTraits("hello")).toEqual([]);
+  });
+});
+
+describe("news feed", () => {
+  const frame = (tick: number, ids: number[], jailed: number[] = []) => ({
+    tick,
+    p: ids.map((id) => [id, 0, 0, 3, jailed.includes(id) ? 1 : 0]),
+  });
+
+  it("says nothing about the first frame", () => {
+    const feed = new NewsFeed();
+    feed.push(frame(1, [1, 2, 3]));
+    expect(feed.items).toEqual([]);
+  });
+
+  it("does not tell the same story twice when a tick is sent again", () => {
+    const feed = new NewsFeed();
+    feed.push(frame(1, [1, 2]));
+    feed.push(frame(2, [1, 2]));
+    feed.push(frame(2, [1, 2, 3]));
+    feed.push(frame(2, [1, 2, 3]));
+    expect(feed.items.map((i) => `${i.kind}:${i.ids[0]}`)).toEqual(["birth:3"]);
+  });
+
+  it("ignores newcomers added before any tick has passed", () => {
+    const feed = new NewsFeed();
+    feed.push(frame(0, [1, 2]));
+    feed.push(frame(0, [1, 2, 3, 4]));
+    expect(feed.items).toEqual([]);
+  });
+
+  it("starts over when time runs backward", () => {
+    const feed = new NewsFeed();
+    feed.push(frame(5, [1, 2]));
+    feed.push(frame(6, [1]));
+    expect(feed.items).toHaveLength(1);
+    feed.push(frame(1, [1, 2]));
+    expect(feed.items).toEqual([]);
+  });
+
+  it("keeps only recent headlines", () => {
+    const feed = new NewsFeed();
+    feed.push(frame(0, [0]));
+    for (let t = 1; t <= 600; t++) feed.push(frame(t, [0, t]));
+    expect(feed.items.length).toBeLessThanOrEqual(500);
+    expect(feed.items.filter((i) => i.kind === "birth").pop()?.ids[0]).toBe(600);
   });
 });

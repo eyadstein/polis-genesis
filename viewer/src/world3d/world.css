@@ -232,3 +232,19 @@ body {
   max-height: calc(100vh - 180px);
   overflow: auto;
 }
+
+.hud-live {
+  margin-top: 4px;
+  color: #ff8d7a;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.hud-notice {
+  top: 76px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-color: #ff8d7a;
+  color: #ffd2c9;
+}

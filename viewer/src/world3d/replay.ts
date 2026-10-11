@@ -22,6 +22,10 @@ export interface Sample {
 
 export const REPLAY_VERSION = 1;
 
+/** How much of a living town the viewer keeps in memory. */
+export const LIVE_FRAME_LIMIT = 4000;
+export const LIVE_TALK_LIMIT = 20_000;
+
 export function parseReplay(raw: unknown): Replay {
   const r = raw as Partial<Replay> | null;
   if (!r || typeof r !== "object") throw new Error("replay.json is not an object");
@@ -41,6 +45,38 @@ export class ReplayPlayer {
 
   constructor(readonly replay: Replay) {
     this.rows = replay.frames.map((f) => new Map(f.p.map((row) => [row[0] ?? -1, row])));
+  }
+
+  /**
+   * Add frames and speech from the living town. A frame with the same tick as
+   * the newest one replaces it, which is how newcomers show up while paused.
+   */
+  append(frames: Replay["frames"], talk: ReplayTalk[]): void {
+    const kept = this.replay.frames;
+    for (const frame of frames) {
+      if (kept[kept.length - 1]?.tick === frame.tick) {
+        kept.pop();
+        this.rows.pop();
+      }
+      kept.push({ tick: frame.tick, p: frame.p });
+      this.rows.push(new Map(frame.p.map((row) => [row[0] ?? -1, row])));
+    }
+    if (kept.length > LIVE_FRAME_LIMIT) {
+      const extra = kept.length - LIVE_FRAME_LIMIT;
+      kept.splice(0, extra);
+      this.rows.splice(0, extra);
+    }
+    for (const line of talk) this.replay.talk.push(line);
+    if (this.replay.talk.length > LIVE_TALK_LIMIT) {
+      this.replay.talk.splice(0, this.replay.talk.length - LIVE_TALK_LIMIT);
+    }
+  }
+
+  /** Forget everything, for when the town starts over. */
+  reset(): void {
+    this.replay.frames.length = 0;
+    this.replay.talk.length = 0;
+    this.rows.length = 0;
   }
 
   get startTick(): number {

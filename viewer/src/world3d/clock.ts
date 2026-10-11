@@ -52,11 +52,17 @@ export class SimClock {
   playing = false;
 
   constructor(
-    readonly min: number,
-    readonly max: number,
+    public min: number,
+    public max: number,
     start: number = min,
   ) {
     this.tick = Math.min(max, Math.max(min, start));
+  }
+
+  /** The range grows as a living town makes more history. */
+  setRange(min: number, max: number): void {
+    this.min = min;
+    this.max = Math.max(min, max);
   }
 
   seek(tick: number): void {

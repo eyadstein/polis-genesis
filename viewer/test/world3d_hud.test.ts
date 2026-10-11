@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { SimClock } from "../src/world3d/clock";
-import { createHud } from "../src/world3d/hud";
+import { createHud, nearestSpeed, type LiveHooks } from "../src/world3d/hud";
 import { buildLayout } from "../src/world3d/layout";
 import type { Person, Town } from "../src/types";
 
@@ -74,5 +74,72 @@ describe("hud", () => {
     expect(root.querySelector(".hud-news")?.textContent).toContain("Ana was sent to prison.");
     hud.setNews(null);
     expect(root.querySelector(".hud-news")?.textContent).toContain("quiet day");
+  });
+});
+describe("live hud", () => {
+  function live(over: Partial<ReturnType<LiveHooks["status"]>> = {}) {
+    const state = { paused: false, speed: 2, alive: 31, ...over };
+    const hooks = {
+      status: () => state,
+      setPaused: vi.fn((p: boolean) => {
+        state.paused = p;
+      }),
+      setSpeed: vi.fn(),
+      addPeople: vi.fn(),
+    };
+    const root = document.createElement("div");
+    const clock = new SimClock(0, 100, 0);
+    const layout = buildLayout(town);
+    const hud = createHud(root, clock, town, layout, { onClosePerson: vi.fn(), onCloseBuilding: vi.fn(), onSelectPerson: vi.fn(), onSelectHome: vi.fn() }, hooks);
+    return { root, hooks, hud, clock, state };
+  }
+
+  it("shows live controls instead of the time machine", () => {
+    const { root } = live();
+    const labels = [...root.querySelectorAll("button")].map((b) => b.textContent);
+    expect(labels).toContain("Add 5 people");
+    expect(labels).not.toContain("Back 1 day");
+    expect(root.querySelector(".hud-scrub")).toBeNull();
+    expect(root.querySelector(".hud-live")?.hasAttribute("hidden")).toBe(false);
+  });
+
+  it("starts on the speed the town runs at", () => {
+    const { root } = live({ speed: 24 });
+    expect((root.querySelector("select") as HTMLSelectElement).value).toBe("24");
+    expect(nearestSpeed(0.3)).toBe(0.25);
+    expect(nearestSpeed(100)).toBe(72);
+  });
+
+  it("asks the town to add people, pause and change speed", () => {
+    const { root, hooks, hud } = live();
+    const click = (text: string) => [...root.querySelectorAll("button")].find((b) => b.textContent === text)?.click();
+    click("Add 20 people");
+    expect(hooks.addPeople).toHaveBeenCalledWith(20);
+    click("Pause");
+    expect(hooks.setPaused).toHaveBeenCalledWith(true);
+    hud.update();
+    expect([...root.querySelectorAll("button")].some((b) => b.textContent === "Play")).toBe(true);
+    const select = root.querySelector("select") as HTMLSelectElement;
+    select.value = "12";
+    select.dispatchEvent(new Event("change"));
+    expect(hooks.setSpeed).toHaveBeenCalledWith(12);
+  });
+
+  it("shows the population and notices", () => {
+    const { root, hud } = live({ alive: 44 });
+    hud.update();
+    expect(root.querySelector(".hud-live")?.textContent).toContain("44 people");
+    hud.setNotice("Lost the town.");
+    expect((root.querySelector(".hud-notice") as HTMLElement).hidden).toBe(false);
+    hud.setNotice(null);
+    expect((root.querySelector(".hud-notice") as HTMLElement).hidden).toBe(true);
+  });
+
+  it("learns about people who arrive", () => {
+    const { root, hud } = live();
+    const bigger: Town = { ...town, people: [...town.people, person(3, "Cy", { partner: null })] };
+    hud.setTown(bigger, buildLayout(bigger));
+    hud.showPerson(3);
+    expect(root.querySelector(".hud-card h2")?.textContent).toBe("Cy");
   });
 });

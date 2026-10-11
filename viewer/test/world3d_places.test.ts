@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { Person, Town } from "../src/types";
-import { buildLayout, residentsByFloor, workersOf } from "../src/world3d/layout";
+import { buildLayout, layoutSignature, residentsByFloor, workersOf } from "../src/world3d/layout";
 
 vi.mock("three", async (importOriginal) => {
   const actual = await importOriginal<typeof import("three")>();
@@ -78,5 +78,52 @@ describe("places", () => {
       expect(opened).toBeNull();
       expect(scene.selectedBuildingNow).toBeNull();
     });
+  });
+});
+describe("a growing town in the scene", () => {
+  const layout = buildLayout(town);
+
+  beforeAll(() => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    vi.stubGlobal("ResizeObserver", class { observe(): void {} disconnect(): void {} });
+  });
+
+  it("notices when the buildings change", () => {
+    const same = layoutSignature(buildLayout(town));
+    expect(same).toBe(layoutSignature(layout));
+    const grown: Town = { ...town, people: [...town.people, person(9, 77, 5, "Villa")] };
+    expect(layoutSignature(buildLayout(grown))).not.toBe(same);
+  });
+
+  it("takes in newcomers", () => {
+    const scene = new WorldScene(document.createElement("div"), layout, town);
+    scene.update(10, [{ id: 9, x: 5, y: 5, action: 3, jailed: false }], 0.016);
+    expect(scene.poseOf(9)).toBeNull();
+    scene.syncPeople({ ...town, people: [...town.people, person(9, 77, 5)] });
+    scene.update(10, [{ id: 9, x: 5, y: 5, action: 3, jailed: false }], 0.016);
+    expect(scene.poseOf(9)).not.toBeNull();
+  });
+
+  it("builds the town again with new houses and keeps the open building", () => {
+    const scene = new WorldScene(document.createElement("div"), layout, town);
+    scene.selectHome(20);
+    const grown: Town = { ...town, people: [...town.people, person(9, 77, 5, "Villa")] };
+    const bigger = buildLayout(grown);
+    scene.rebuildPlaces(bigger);
+    expect(scene.selectedBuildingNow?.type).toBe("house");
+    scene.selectHome(77);
+    expect(scene.selectedBuildingNow?.type).toBe("house");
+    scene.update(10, [], 0.016);
+  });
+
+  it("closes the building card when its building is gone", () => {
+    const scene = new WorldScene(document.createElement("div"), layout, town);
+    let open: string | null = "x";
+    scene.onBuilding = (b) => (open = b ? b.type : null);
+    scene.selectHome(20);
+    const empty: Town = { ...town, people: [], districts: town.districts.map((d) => ({ ...d, homes: 0 })) };
+    scene.rebuildPlaces(buildLayout(empty));
+    expect(open).toBeNull();
+    expect(scene.selectedBuildingNow).toBeNull();
   });
 });

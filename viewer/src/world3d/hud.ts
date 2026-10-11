@@ -21,6 +21,20 @@ const SPEEDS: [label: string, ticksPerSecond: number][] = [
 ];
 const DEFAULT_SPEED = 0.25;
 
+/** The listed speed closest to a speed the town is running at. */
+export function nearestSpeed(speed: number): number {
+  let best = DEFAULT_SPEED;
+  let gap = Infinity;
+  for (const [, value] of SPEEDS) {
+    const d = Math.abs(Math.log(value) - Math.log(Math.max(speed, 0.001)));
+    if (d < gap) {
+      gap = d;
+      best = value;
+    }
+  }
+  return best;
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -57,16 +71,28 @@ export interface HudHooks {
   onSelectHome(homeId: number): void;
 }
 
+/** What the HUD needs from a living town, when there is one. */
+export interface LiveHooks {
+  status(): { paused: boolean; speed: number; alive: number };
+  setPaused(paused: boolean): void;
+  setSpeed(speed: number): void;
+  addPeople(count: number): void;
+}
+
 export interface Hud {
   update(): void;
+  setTown(town: Town, layout: Layout): void;
+  setNotice(text: string | null): void;
   showPerson(id: number | null): void;
   showBuilding(building: Building | null): void;
   setTalk(lines: ReplayTalk[]): void;
   setNews(text: string | null): void;
 }
 
-export function createHud(root: HTMLElement, clock: SimClock, town: Town, layout: Layout, hooks: HudHooks): Hud {
-  const people = new Map(town.people.map((p) => [p.id, p]));
+export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, firstLayout: Layout, hooks: HudHooks, live?: LiveHooks): Hud {
+  let town = firstTown;
+  let layout = firstLayout;
+  let people = new Map(town.people.map((p) => [p.id, p]));
   const faces = new Map();
   const nameOf = (id: number): string => people.get(id)?.name ?? `Person ${id}`;
   const personLink = (id: number): HTMLButtonElement => link(nameOf(id), () => hooks.onSelectPerson(id));
@@ -75,7 +101,9 @@ export function createHud(root: HTMLElement, clock: SimClock, town: Town, layout
   const clockBox = el("div", "hud-panel hud-clock");
   const clockText = el("div", "hud-time");
   const phaseText = el("div", "hud-phase");
-  clockBox.append(clockText, phaseText);
+  const liveTag = el("div", "hud-live");
+  liveTag.hidden = !live;
+  clockBox.append(clockText, phaseText, liveTag);
 
   const news = el("div", "hud-panel hud-news");
   news.setAttribute("role", "status");
@@ -93,24 +121,34 @@ export function createHud(root: HTMLElement, clock: SimClock, town: Town, layout
   scrub.setAttribute("aria-label", "Time");
   scrub.addEventListener("input", () => clock.seek(Number(scrub.value)));
 
-  const play = button("Play", "Play or pause (space)", () => clock.togglePlay());
+  const togglePlay = (): void => {
+    if (live) live.setPaused(!live.status().paused);
+    else clock.togglePlay();
+    refresh();
+  };
+  const play = button("Play", "Play or pause (space)", togglePlay);
   const direction = button("Forward", "Run time forward or backward", () => {
     clock.setSpeed(-clock.speed);
     refresh();
   });
+  const startSpeed = live ? nearestSpeed(live.status().speed) : DEFAULT_SPEED;
   const speed = el("select", "hud-select");
   speed.setAttribute("aria-label", "Speed");
   for (const [label, value] of SPEEDS) {
     const o = el("option", undefined, label);
     o.value = String(value);
-    o.selected = value === DEFAULT_SPEED;
+    o.selected = value === startSpeed;
     speed.append(o);
   }
   speed.addEventListener("change", () => {
+    if (live) {
+      live.setSpeed(Number(speed.value));
+      return;
+    }
     const sign = clock.speed < 0 ? -1 : 1;
     clock.setSpeed(sign * Number(speed.value));
   });
-  clock.setSpeed(DEFAULT_SPEED);
+  if (!live) clock.setSpeed(DEFAULT_SPEED);
 
   const talkToggle = button("Conversations: on", "Show or hide what people say", () => {
     feed.hidden = !feed.hidden;
@@ -118,27 +156,41 @@ export function createHud(root: HTMLElement, clock: SimClock, town: Town, layout
   });
 
   const controls = el("div", "hud-row");
-  controls.append(
-    button("Back 1 day", "Go back one day (shift and left arrow)", () => clock.skip(-TICKS_PER_DAY)),
-    button("Back 1 hour", "Go back one hour (left arrow)", () => clock.skip(-1)),
-    play,
-    button("Ahead 1 hour", "Go ahead one hour (right arrow)", () => clock.skip(1)),
-    button("Ahead 1 day", "Go ahead one day (shift and right arrow)", () => clock.skip(TICKS_PER_DAY)),
-    direction,
-    speed,
-    talkToggle,
-  );
-  bar.append(scrub, controls);
+  if (live) {
+    controls.append(play, speed);
+    for (const n of [1, 5, 20]) {
+      controls.append(button(`Add ${n} ${n === 1 ? "person" : "people"}`, "Strangers arrive in town", () => live.addPeople(n)));
+    }
+    controls.append(talkToggle);
+    bar.append(controls);
+  } else {
+    controls.append(
+      button("Back 1 day", "Go back one day (shift and left arrow)", () => clock.skip(-TICKS_PER_DAY)),
+      button("Back 1 hour", "Go back one hour (left arrow)", () => clock.skip(-1)),
+      play,
+      button("Ahead 1 hour", "Go ahead one hour (right arrow)", () => clock.skip(1)),
+      button("Ahead 1 day", "Go ahead one day (shift and right arrow)", () => clock.skip(TICKS_PER_DAY)),
+      direction,
+      speed,
+      talkToggle,
+    );
+    bar.append(scrub, controls);
+  }
 
   const feed = el("div", "hud-panel hud-feed");
   feed.setAttribute("aria-live", "polite");
   const card = el("div", "hud-panel hud-card");
   card.hidden = true;
 
-  root.append(clockBox, news, bar, feed, card);
+  const notice = el("div", "hud-panel hud-notice");
+  notice.hidden = true;
+  notice.setAttribute("role", "alert");
+
+  root.append(clockBox, news, bar, feed, card, notice);
 
   function refresh(): void {
-    play.textContent = clock.playing ? "Pause" : "Play";
+    const running = live ? !live.status().paused : clock.playing;
+    play.textContent = running ? "Pause" : "Play";
     direction.textContent = clock.speed < 0 ? "Backward" : "Forward";
   }
 
@@ -147,8 +199,8 @@ export function createHud(root: HTMLElement, clock: SimClock, town: Town, layout
     if (target.tagName === "INPUT" && target.getAttribute("type") !== "range") return;
     if (e.code === "Space") {
       e.preventDefault();
-      clock.togglePlay();
-    } else if (e.code === "ArrowLeft" || e.code === "ArrowRight") {
+      togglePlay();
+    } else if (!live && (e.code === "ArrowLeft" || e.code === "ArrowRight")) {
       const sign = e.code === "ArrowLeft" ? -1 : 1;
       clock.skip(sign * (e.shiftKey ? TICKS_PER_DAY : 1));
     }
@@ -260,9 +312,24 @@ export function createHud(root: HTMLElement, clock: SimClock, town: Town, layout
     clockText.textContent = clockLabel(clock.tick);
     phaseText.textContent = phaseName(clock.tick);
     if (document.activeElement !== scrub) scrub.value = String(clock.tick);
+    if (live) {
+      const status = live.status();
+      liveTag.textContent = `LIVE  ${status.alive} people  ${status.paused ? "paused" : "running"}`;
+    }
     refresh();
   }
 
+  function setTown(next: Town, nextLayout: Layout): void {
+    town = next;
+    layout = nextLayout;
+    people = new Map(town.people.map((p) => [p.id, p]));
+  }
+
+  function setNotice(text: string | null): void {
+    notice.hidden = text === null;
+    notice.textContent = text ?? "";
+  }
+
   refresh();
-  return { update, showPerson, showBuilding, setTalk, setNews };
+  return { update, setTown, setNotice, showPerson, showBuilding, setTalk, setNews };
 }

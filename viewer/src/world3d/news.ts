@@ -6,55 +6,103 @@ import type { ReplayPlayer } from "./replay";
 
 export interface NewsItem {
   tick: number;
-  text: string;
   kind: "birth" | "death" | "prison" | "release";
   ids: number[];
 }
 
 export const QUIET_NEWS = "A quiet day in Polis.";
+const KEEP_ITEMS = 500;
 
-export function deriveNews(player: ReplayPlayer, town: Town): NewsItem[] {
-  const names = new Map(town.people.map((p) => [p.id, p]));
-  const name = (id: number): string => names.get(id)?.name ?? `Person ${id}`;
-  const frames = player.replay.frames;
-  const items: NewsItem[] = [];
-  const rows = (i: number): Map<number, number[]> => new Map((frames[i]?.p ?? []).map((r) => [r[0] ?? -1, r]));
-  let before = rows(0);
-  for (let i = 1; i < frames.length; i++) {
-    const tick = frames[i]?.tick ?? 0;
-    const now = rows(i);
-    for (const [id, row] of now) {
-      const old = before.get(id);
-      if (!old) {
-        const parents = names.get(id)?.parents;
-        items.push(
-          parents
-            ? { tick, kind: "birth", ids: [id, ...parents], text: `A baby was born: ${name(id)}, child of ${name(parents[0])} and ${name(parents[1])}.` }
-            : { tick, kind: "birth", ids: [id], text: `${name(id)} arrived in town.` },
-        );
-      } else if (old[4] === 0 && row[4] === 1) {
-        items.push({ tick, kind: "prison", ids: [id], text: `${name(id)} was sent to prison.` });
-      } else if (old[4] === 1 && row[4] === 0) {
-        items.push({ tick, kind: "release", ids: [id], text: `${name(id)} was released from prison.` });
-      }
-    }
-    for (const id of before.keys()) {
-      if (now.has(id)) continue;
-      const person = names.get(id);
-      const age = person ? years(Math.max(0, person.age - (town.tick - tick))) : null;
-      items.push({ tick, kind: "death", ids: [id], text: `${name(id)} has died${age === null ? "" : ` at the age of ${age}`}.` });
-    }
-    before = now;
+type Rows = Map<number, number[]>;
+
+/** Reads frames one after another and keeps the headlines. Safe to feed the same tick twice. */
+export class NewsFeed {
+  readonly items: NewsItem[] = [];
+  private before: Rows = new Map();
+  private current: Rows = new Map();
+  private tick = -1;
+  private hasBefore = false;
+  private told = new Set<string>();
+
+  private tell(item: NewsItem): void {
+    const key = `${item.kind}:${item.ids[0]}`;
+    if (this.told.has(key)) return;
+    this.told.add(key);
+    this.items.push(item);
+    if (this.items.length > KEEP_ITEMS) this.items.splice(0, this.items.length - KEEP_ITEMS);
   }
-  return items;
+
+  push(frame: { tick: number; p: number[][] }): void {
+    const rows: Rows = new Map(frame.p.map((r) => [r[0] ?? -1, r]));
+    if (frame.tick < this.tick) {
+      this.items.length = 0;
+      this.tick = -1;
+      this.hasBefore = false;
+    }
+    if (this.tick < 0) {
+      this.current = rows;
+      this.tick = frame.tick;
+      return;
+    }
+    if (frame.tick > this.tick) {
+      this.before = this.current;
+      this.hasBefore = true;
+      this.told.clear();
+      this.tick = frame.tick;
+    }
+    if (this.hasBefore) this.compare(frame.tick, rows);
+    this.current = rows;
+  }
+
+  private compare(tick: number, now: Rows): void {
+    for (const [id, row] of now) {
+      const old = this.before.get(id);
+      if (!old) this.tell({ tick, kind: "birth", ids: [id] });
+      else if (old[4] === 0 && row[4] === 1) this.tell({ tick, kind: "prison", ids: [id] });
+      else if (old[4] === 1 && row[4] === 0) this.tell({ tick, kind: "release", ids: [id] });
+    }
+    for (const id of this.before.keys()) {
+      if (!now.has(id)) this.tell({ tick, kind: "death", ids: [id] });
+    }
+  }
+}
+
+export function deriveNews(player: ReplayPlayer): NewsItem[] {
+  const feed = new NewsFeed();
+  for (const frame of player.replay.frames) feed.push(frame);
+  return feed.items;
+}
+
+/** The words for a headline, using whatever the town knows now. */
+export function describe(item: NewsItem, town: Town): string {
+  const people = new Map(town.people.map((p) => [p.id, p]));
+  const name = (id: number): string => people.get(id)?.name ?? `Person ${id}`;
+  const id = item.ids[0] ?? -1;
+  const person = people.get(id);
+  switch (item.kind) {
+    case "birth": {
+      const parents = person?.parents;
+      return parents
+        ? `A baby was born: ${name(id)}, child of ${name(parents[0])} and ${name(parents[1])}.`
+        : `${name(id)} arrived in town.`;
+    }
+    case "death": {
+      const age = person ? years(Math.max(0, person.age - (town.tick - item.tick))) : null;
+      return `${name(id)} has died${age === null ? "" : ` at the age of ${age}`}.`;
+    }
+    case "prison":
+      return `${name(id)} was sent to prison.`;
+    case "release":
+      return `${name(id)} was released from prison.`;
+  }
 }
 
 /** The newest headline from the last `window` ticks, or null on a quiet stretch. */
 export function newsAt(items: NewsItem[], tick: number, window = 36): NewsItem | null {
-  let found: NewsItem | null = null;
-  for (const item of items) {
-    if (item.tick > tick) break;
-    if (item.tick > tick - window) found = item;
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i] as NewsItem;
+    if (item.tick > tick) continue;
+    return item.tick > tick - window ? item : null;
   }
-  return found;
+  return null;
 }

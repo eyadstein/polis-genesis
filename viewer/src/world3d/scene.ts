@@ -4,7 +4,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { faceFor, HAIR_COLORS, SKIN_TONES } from "../faces";
 import { years } from "../stats";
-import type { Town } from "../types";
+import type { Person, Town } from "../types";
 import { daylight, sunAngle } from "./clock";
 import { hash01, pushOut, type Building, type Layout } from "./layout";
 import type { Sample } from "./replay";
@@ -14,6 +14,8 @@ const JAILED_COLOR = "#d9822b";
 const HAIR_HEIGHT = [0.7, 1.3, 0.5, 1, 0];
 const KIND_WALL: Record<string, string> = { Shack: "#a98c6a", House: "#e0cfae", Villa: "#f0e6d0", Flat: "#b9bcc4" };
 const ADULT_YEARS = 16;
+/** Most people the scene can hold. */
+const CAPACITY = 3000;
 const SKY_NIGHT = new THREE.Color("#060a18");
 const SKY_DAY = new THREE.Color("#8ec5ff");
 const SKY_DUSK = new THREE.Color("#f2a05a");
@@ -58,10 +60,13 @@ export class WorldScene {
   private readonly moon = new THREE.DirectionalLight("#7f9bff", 0.3);
   private readonly sky = new THREE.HemisphereLight("#bfdcff", "#4a5a3a", 0.8);
   private readonly center: THREE.Vector3;
-  private readonly windows: Instanced;
+  private readonly places = new THREE.Group();
+  private readonly signTextures = new Map<string, THREE.CanvasTexture>();
+  private readonly faceCache = new Map();
+  private windows!: Instanced;
   private readonly windowThreshold: number[] = [];
-  private readonly bulbs: Instanced;
-  private readonly glow: THREE.MeshBasicMaterial;
+  private bulbs!: Instanced;
+  private glow!: THREE.MeshBasicMaterial;
   private readonly stars: THREE.Points<THREE.BufferGeometry, THREE.PointsMaterial>;
   private readonly bodies: Instanced;
   private readonly heads: Instanced;
@@ -73,15 +78,15 @@ export class WorldScene {
   private buildingMesh!: Instanced;
   private readonly buildingList: Building[] = [];
   private readonly outline: THREE.LineSegments;
-  private readonly workLabels = new THREE.Group();
-  private readonly districtLabels = new THREE.Group();
+  private workLabels = new THREE.Group();
+  private districtLabels = new THREE.Group();
   private selectedBuilding: Building | null = null;
   private readonly ring: THREE.Mesh;
   private readonly index = new Map<number, number>();
   private readonly ids: number[] = [];
-  private readonly lastAction: number[];
-  private readonly poses: Pose[];
-  private readonly birthTicks: number[];
+  private readonly lastAction: number[] = [];
+  private readonly poses: Pose[] = [];
+  private readonly birthTicks: number[] = [];
   private readonly hidden = new THREE.Matrix4().makeScale(0, 0, 0);
   private lastNight = -1;
   private selected: number | null = null;
@@ -89,7 +94,7 @@ export class WorldScene {
 
   constructor(
     host: HTMLElement,
-    private readonly layout: Layout,
+    private layout: Layout,
     town: Town,
   ) {
     this.center = new THREE.Vector3(layout.width / 2, 0, layout.depth / 2);
@@ -122,45 +127,18 @@ export class WorldScene {
     cam.far = 220;
     this.sun.shadow.bias = -0.0005;
 
-    this.buildGround();
-    this.buildBuildings();
-    this.buildTrees();
-    ({ bulbs: this.bulbs, glow: this.glow } = this.buildLamps());
-    this.windows = this.buildWindows();
+    this.scene.add(this.places);
+    this.buildPlaces();
     this.stars = this.buildStars();
-    this.buildLabels();
 
-    const people = town.people;
-    people.forEach((p, i) => {
-      this.index.set(p.id, i);
-      this.ids.push(p.id);
-    });
-    this.birthTicks = people.map((p) => town.tick - p.age);
-    this.lastAction = people.map(() => -1);
-    this.poses = people.map(() => ({ x: 0, z: 0, heading: 0, height: 1.7 }));
     const body = new THREE.MeshStandardMaterial({ roughness: 0.7 });
     const head = new THREE.MeshStandardMaterial({ roughness: 0.6 });
     const hairMaterial = new THREE.MeshStandardMaterial({ roughness: 0.85 });
-    this.bodies = instanced(new THREE.CapsuleGeometry(0.16, 0.5, 4, 8), body, people.length);
-    this.heads = instanced(new THREE.SphereGeometry(0.14, 14, 10), head, people.length);
-    this.hair = instanced(new THREE.SphereGeometry(0.155, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), hairMaterial, people.length);
-    this.badges = instanced(new THREE.OctahedronGeometry(0.07), new THREE.MeshBasicMaterial({ toneMapped: false }), people.length);
-    const byId = new Map(people.map((p) => [p.id, p]));
-    const cache = new Map();
-    people.forEach((p, i) => {
-      const f = faceFor(p.id, byId, cache);
-      const t = f.skin * (SKIN_TONES.length - 1);
-      const a = new THREE.Color(SKIN_TONES[Math.floor(t)] ?? "#cf9a6b");
-      const b = new THREE.Color(SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.floor(t) + 1)] ?? "#cf9a6b");
-      this.heads.setColorAt(i, a.lerp(b, t - Math.floor(t)));
-      this.hair.setColorAt(i, new THREE.Color(HAIR_COLORS[f.hair] ?? "#3b2417"));
-      this.hairStyles.push(f.hairStyle);
-      const outfit = new THREE.Color().setHSL(hash01(p.id, 50), 0.3 + hash01(p.id, 51) * 0.45, 0.3 + hash01(p.id, 52) * 0.25);
-      this.outfits.push(outfit);
-      this.bodies.setColorAt(i, outfit);
-      this.statures.push(0.93 + hash01(p.id, 60) * 0.14);
-      for (const m of [this.bodies, this.heads, this.hair, this.badges]) m.setMatrixAt(i, this.hidden);
-    });
+    this.bodies = instanced(new THREE.CapsuleGeometry(0.16, 0.5, 4, 8), body, CAPACITY);
+    this.heads = instanced(new THREE.SphereGeometry(0.14, 14, 10), head, CAPACITY);
+    this.hair = instanced(new THREE.SphereGeometry(0.155, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), hairMaterial, CAPACITY);
+    this.badges = instanced(new THREE.OctahedronGeometry(0.07), new THREE.MeshBasicMaterial({ toneMapped: false }), CAPACITY);
+    this.syncPeople(town);
     for (const m of [this.bodies, this.heads, this.hair]) {
       m.castShadow = true;
       m.frustumCulled = false;
@@ -183,6 +161,76 @@ export class WorldScene {
     this.resize(host);
   }
 
+  /** Everything made of ground and buildings. Built again whenever the town grows. */
+  private buildPlaces(): void {
+    this.buildGround();
+    this.buildBuildings();
+    this.buildTrees();
+    ({ bulbs: this.bulbs, glow: this.glow } = this.buildLamps());
+    this.windows = this.buildWindows();
+    this.buildLabels();
+    this.lastNight = -1;
+  }
+
+  /** Replace the buildings with a new layout, keeping the selected one if it still stands. */
+  rebuildPlaces(layout: Layout): void {
+    this.layout = layout;
+    this.places.traverse((object) => {
+      const thing = object as THREE.Mesh;
+      thing.geometry?.dispose();
+      const material = thing.material as THREE.Material | THREE.Material[] | undefined;
+      for (const m of Array.isArray(material) ? material : material ? [material] : []) m.dispose();
+    });
+    this.places.clear();
+    this.buildingList.length = 0;
+    this.windowThreshold.length = 0;
+    const kept = this.selectedBuilding;
+    this.buildPlaces();
+    if (kept) {
+      const again = this.buildingList.find((b) => b.type === kept.type && b.x === kept.x && b.z === kept.z) ?? null;
+      this.selectedBuilding = again;
+      this.outline.visible = again !== null;
+      if (!again) this.onBuilding(null);
+    }
+  }
+
+  /** Make room for anyone the town has gained, and refresh what we know of everyone. */
+  syncPeople(town: Town): void {
+    const byId = new Map(town.people.map((p) => [p.id, p]));
+    for (const p of town.people) {
+      const known = this.index.get(p.id);
+      if (known !== undefined) {
+        this.birthTicks[known] = town.tick - p.age;
+        continue;
+      }
+      if (this.ids.length >= CAPACITY) break;
+      this.addPerson(p, byId, town.tick);
+    }
+    for (const m of [this.bodies, this.heads, this.hair, this.badges]) m.count = this.ids.length;
+  }
+
+  private addPerson(p: Person, byId: Map<number, Person>, tick: number): void {
+    const i = this.ids.length;
+    this.index.set(p.id, i);
+    this.ids.push(p.id);
+    this.birthTicks.push(tick - p.age);
+    this.lastAction.push(-1);
+    this.poses.push({ x: 0, z: 0, heading: 0, height: 1.7 });
+    const f = faceFor(p.id, byId, this.faceCache);
+    const t = f.skin * (SKIN_TONES.length - 1);
+    const a = new THREE.Color(SKIN_TONES[Math.floor(t)] ?? "#cf9a6b");
+    const b = new THREE.Color(SKIN_TONES[Math.min(SKIN_TONES.length - 1, Math.floor(t) + 1)] ?? "#cf9a6b");
+    this.heads.setColorAt(i, a.lerp(b, t - Math.floor(t)));
+    this.hair.setColorAt(i, new THREE.Color(HAIR_COLORS[f.hair] ?? "#3b2417"));
+    this.hairStyles.push(f.hairStyle);
+    const outfit = new THREE.Color().setHSL(hash01(p.id, 50), 0.3 + hash01(p.id, 51) * 0.45, 0.3 + hash01(p.id, 52) * 0.25);
+    this.outfits.push(outfit);
+    this.bodies.setColorAt(i, outfit);
+    this.statures.push(0.93 + hash01(p.id, 60) * 0.14);
+    for (const m of [this.bodies, this.heads, this.hair, this.badges]) m.setMatrixAt(i, this.hidden);
+    for (const m of [this.bodies, this.heads, this.hair]) if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  }
+
   private resize(host: HTMLElement): void {
     const w = Math.max(1, host.clientWidth);
     const h = Math.max(1, host.clientHeight);
@@ -199,7 +247,7 @@ export class WorldScene {
     );
     grass.position.set(this.center.x, -0.02, this.center.z);
     grass.receiveShadow = true;
-    this.scene.add(grass);
+    this.places.add(grass);
     for (const d of this.layout.districts) {
       const road = new THREE.Mesh(
         new THREE.PlaneGeometry(d.size, d.size).rotateX(-Math.PI / 2),
@@ -207,7 +255,7 @@ export class WorldScene {
       );
       road.position.set(d.x + d.size / 2, 0, d.z + d.size / 2);
       road.receiveShadow = true;
-      this.scene.add(road);
+      this.places.add(road);
     }
 
     const lots = instanced(
@@ -224,7 +272,7 @@ export class WorldScene {
       paint(lots, i, tinted);
     });
     lots.receiveShadow = true;
-    this.scene.add(lots);
+    this.places.add(lots);
   }
 
   private buildBuildings(): void {
@@ -256,7 +304,7 @@ export class WorldScene {
     for (const m of [bodies, roofs]) {
       m.castShadow = true;
       m.receiveShadow = true;
-      this.scene.add(m);
+      this.places.add(m);
     }
   }
 
@@ -280,7 +328,7 @@ export class WorldScene {
       this.windowThreshold.push(s.thr);
       paint(mesh, i, "#2b3b4d");
     });
-    this.scene.add(mesh);
+    this.places.add(mesh);
     return mesh;
   }
 
@@ -295,7 +343,7 @@ export class WorldScene {
     });
     for (const m of [trunks, crowns]) {
       m.castShadow = true;
-      this.scene.add(m);
+      this.places.add(m);
     }
   }
 
@@ -311,7 +359,7 @@ export class WorldScene {
       paint(bulbs, i, "#555555");
       place(pools, i, l.x, 0.04, l.z);
     });
-    this.scene.add(poles, bulbs, pools);
+    this.places.add(poles, bulbs, pools);
     return { bulbs, glow };
   }
 
@@ -360,6 +408,21 @@ export class WorldScene {
 
   /** Make a text sign. Returns null where there is no canvas to draw on. */
   private sign(text: string, width: number, color: string): THREE.Sprite | null {
+    const key = `${text}|${color}`;
+    let texture = this.signTextures.get(key);
+    if (!texture) {
+      const drawn = this.drawSign(text, color);
+      if (!drawn) return null;
+      texture = drawn;
+      this.signTextures.set(key, texture);
+    }
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false, fog: false }));
+    sprite.scale.set(width, width / 4, 1);
+    sprite.renderOrder = 10;
+    return sprite;
+  }
+
+  private drawSign(text: string, color: string): THREE.CanvasTexture | null {
     const canvas = document.createElement("canvas");
     canvas.width = 512;
     canvas.height = 128;
@@ -374,13 +437,12 @@ export class WorldScene {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(text, 256, 66);
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(canvas), transparent: true, depthTest: false, fog: false }));
-    sprite.scale.set(width, width / 4, 1);
-    sprite.renderOrder = 10;
-    return sprite;
+    return new THREE.CanvasTexture(canvas);
   }
 
   private buildLabels(): void {
+    this.workLabels = new THREE.Group();
+    this.districtLabels = new THREE.Group();
     for (const w of this.layout.workplaces) {
       const sign = this.sign(w.title, 5, "#ffe9b0");
       if (!sign) continue;
@@ -393,7 +455,7 @@ export class WorldScene {
       sign.position.set(d.x + d.size / 2, 7, d.z + d.size / 2);
       this.districtLabels.add(sign);
     }
-    this.scene.add(this.workLabels, this.districtLabels);
+    this.places.add(this.workLabels, this.districtLabels);
   }
 
   selectBuilding(building: Building | null): void {
