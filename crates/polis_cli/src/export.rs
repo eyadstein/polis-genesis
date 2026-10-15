@@ -41,11 +41,23 @@ fn person(world: &World, index: usize) -> Value {
         "record": a.record,
         "jailed": a.jailed_until.is_some(),
         "friends": a.mind.friends(),
+        "mind": a.is_alive().then(|| mind_json(a)),
         "mood": a.mood.valence,
         "hunger": a.needs.hunger,
         "x": a.pos.0,
         "y": a.pos.1,
         "voice": a.is_alive().then(|| inner_voice(world, a.id)),
+    })
+}
+
+/// What a person has learned about treating people, as shares from 0 to 1.
+fn mind_json(a: &polis_core::Agent) -> Value {
+    let s = polis_core::summarize(a);
+    json!({
+        "experience": s.experience,
+        "greets_back": s.greets_back,
+        "ignores": s.ignores,
+        "quarrels": s.quarrels,
     })
 }
 
@@ -267,5 +279,30 @@ mod tests {
         let json = snapshot(&world, &points);
         assert_eq!(json["history"].as_array().expect("history").len(), 2);
         assert_eq!(json["history"][0]["alive"], world.stats().alive);
+    }
+
+    #[test]
+    fn the_living_have_a_mind_to_show() {
+        let world = town();
+        let value = snapshot(&world, &[]);
+        let people = value["people"].as_array().expect("people");
+        let mut living = 0;
+        for person in people {
+            if person["alive"].as_bool() == Some(true) {
+                living += 1;
+                let mind = &person["mind"];
+                assert!(mind["experience"].as_u64().is_some());
+                for key in ["greets_back", "ignores", "quarrels"] {
+                    let share = mind[key].as_f64().expect("a share");
+                    assert!((0.0..=1.0).contains(&share), "{key} {share}");
+                }
+            } else {
+                assert!(person["mind"].is_null());
+            }
+        }
+        assert!(living > 0);
+        assert!(people
+            .iter()
+            .any(|p| p["mind"]["experience"].as_u64().unwrap_or(0) > 0));
     }
 }

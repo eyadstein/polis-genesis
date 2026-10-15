@@ -6,6 +6,7 @@
 //! from their own state and what they perceive.
 
 pub mod agent;
+pub mod brain;
 pub mod economy;
 pub mod family;
 pub mod genome;
@@ -21,10 +22,11 @@ pub mod talk;
 pub mod world;
 
 pub use agent::{Action, Agent, AgentId, Death};
+pub use brain::{summarize, Brain, MindSummary};
 pub use economy::{Coins, Job};
 pub use genome::{Gene, Genome};
 pub use housing::Kind;
 pub use justice::{Crime, CrimeKind};
 pub use memory::{Event, Memory, Mind};
-pub use talk::{Act, Utterance};
+pub use talk::{Act, Reply, Utterance};
 pub use world::{Stats, World, WorldConfig};

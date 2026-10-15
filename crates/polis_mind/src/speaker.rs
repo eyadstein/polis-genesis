@@ -1,7 +1,7 @@
 //! Finding words for what people do.
 
 use crate::prompt::feeling;
-use polis_core::{Act, Utterance, World};
+use polis_core::{Act, Reply, Utterance, World};
 
 /// Anything that can put an utterance into words.
 pub trait Speaker {
@@ -53,6 +53,23 @@ const QUARREL: [&str; 3] = [
     "I have had enough of your ways, {l}.",
 ];
 
+const GREETING: [&str; 3] = ["Good morning, {l}.", "Hello, {l}.", "{l}! Hello there."];
+const GREETED_BACK: [&str; 3] = [
+    "{l} greets {s} back.",
+    "{l} smiles and says hello.",
+    "{l} answers warmly.",
+];
+const NODDED: [&str; 3] = [
+    "{l} gives a short nod and walks on.",
+    "{l} nods, but says nothing.",
+    "{l} answers with a quick nod.",
+];
+const IGNORED: [&str; 3] = [
+    "{l} looks away and says nothing.",
+    "{l} walks past as if {s} was not there.",
+    "{l} pretends not to hear.",
+];
+
 fn pick<'a>(options: &[&'a str], u: &Utterance) -> &'a str {
     let seed = u.tick * 31 + u64::from(u.speaker) * 17 + u64::from(u.listener) * 13;
     options[(seed % options.len() as u64) as usize]
@@ -83,10 +100,16 @@ impl Speaker for RuleSpeaker {
             Act::Confide => pick(&CONFIDE, u),
             Act::Quarrel => pick(&QUARREL, u),
         };
-        template
+        let spoken = template
             .replace("{l}", listener)
             .replace("{t}", third)
-            .replace("{m}", feeling(speaker))
+            .replace("{m}", feeling(speaker));
+        let line = match u.reply {
+            Reply::Greeted => format!("{} {spoken}", pick(&GREETED_BACK, u)),
+            Reply::Nodded => format!("{} {}", pick(&GREETING, u), pick(&NODDED, u)),
+            Reply::Ignored => format!("{} {}", pick(&GREETING, u), pick(&IGNORED, u)),
+        };
+        line.replace("{l}", listener).replace("{s}", &speaker.name)
     }
 }
 
@@ -94,7 +117,7 @@ impl Speaker for RuleSpeaker {
 mod tests {
     use super::*;
     use crate::filter::leaks;
-    use polis_core::WorldConfig;
+    use polis_core::{Reply, WorldConfig};
 
     fn town() -> World {
         let mut world = World::new(WorldConfig {
@@ -160,5 +183,50 @@ mod tests {
             voice.say(&world, u);
         }
         assert!(seen.len() >= 2);
+    }
+
+    fn greeting(reply: Reply) -> Utterance {
+        Utterance {
+            tick: 7,
+            speaker: 0,
+            listener: 1,
+            act: Act::Smalltalk,
+            reply,
+            about: None,
+            warmth: 0.0,
+        }
+    }
+
+    #[test]
+    fn an_ignored_greeting_is_told_as_a_snub() {
+        let world = town();
+        let mut voice = RuleSpeaker::new();
+        let name = &world.agents[1].name;
+        let ignored = voice.say(&world, &greeting(Reply::Ignored));
+        assert!(ignored.contains(name), "{ignored}");
+        assert!(
+            ["says nothing", "as if", "pretends"]
+                .iter()
+                .any(|w| ignored.contains(w)),
+            "{ignored}"
+        );
+        assert!(!ignored.contains('{') && !ignored.contains('}'));
+    }
+
+    #[test]
+    fn a_nod_and_a_greeting_back_each_sound_like_themselves() {
+        let world = town();
+        let mut voice = RuleSpeaker::new();
+        let nodded = voice.say(&world, &greeting(Reply::Nodded));
+        let greeted = voice.say(&world, &greeting(Reply::Greeted));
+        assert!(nodded.contains("nod"), "{nodded}");
+        assert!(
+            ["back", "hello", "warmly"]
+                .iter()
+                .any(|w| greeted.contains(w)),
+            "{greeted}"
+        );
+        assert!(!greeted.contains('{') && !greeted.contains('}'));
+        assert_ne!(nodded, greeted);
     }
 }

@@ -251,7 +251,8 @@ fn experience_builds_up_and_raises_pay() {
     let experience = veteran.seasoning(job);
     assert!(experience > 200);
     let fit = job.fit(&veteran.genome);
-    let base = job.base_wage(2);
+    // A large base keeps whole coin rounding from hiding the raise.
+    let base = job.base_wage(2) * 20;
     let cash = crate::economy::RESERVE;
     assert!(
         crate::economy::wage_for(base, fit, experience, cash)

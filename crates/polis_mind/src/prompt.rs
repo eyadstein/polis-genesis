@@ -3,7 +3,7 @@
 //! anything outside their world.
 
 use crate::persona::describe;
-use polis_core::{Act, Agent, AgentId, Event, Kind, Memory, Utterance, World};
+use polis_core::{Act, Agent, AgentId, Event, Kind, Memory, Reply, Utterance, World};
 
 /// Ticks that make up one year of a person's life.
 pub const TICKS_PER_YEAR: u32 = 500;
@@ -58,6 +58,7 @@ pub fn memory_sentence(world: &World, memory: &Memory) -> String {
         (Event::Evicted, _) => "You lost your home.".to_string(),
         (Event::Wronged, Some(n)) => format!("{n} wronged you, and you have not forgotten."),
         (Event::Jailed, _) => "You were locked away for what you did.".to_string(),
+        (Event::Snubbed, Some(n)) => format!("{n} ignored your greeting."),
         _ => "Something stays with you.".to_string(),
     }
 }
@@ -143,6 +144,15 @@ pub fn conversation_prompt(world: &World, u: &Utterance) -> String {
             feeling(speaker)
         ),
         (Act::Quarrel, _) => "You are angry with them and you say so.".to_string(),
+    };
+    let intent = match u.reply {
+        Reply::Ignored => {
+            "You greet them, but they ignore you. Say what you mutter to yourself.".to_string()
+        }
+        Reply::Nodded => {
+            "You greet them and they only give a short nod. Say a few words.".to_string()
+        }
+        Reply::Greeted => intent,
     };
     format!(
         "{}\n\nYou are speaking with {} and you feel {} toward them. {}\n\

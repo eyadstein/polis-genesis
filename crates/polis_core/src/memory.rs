@@ -24,6 +24,7 @@ pub enum Event {
     Evicted,
     Wronged,
     Jailed,
+    Snubbed,
 }
 
 impl Event {

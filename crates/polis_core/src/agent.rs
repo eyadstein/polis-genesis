@@ -1,6 +1,7 @@
 //! A person. Every field is that person's own state; the choice of what to
 //! do next is made from that state and what they can perceive.
 
+use crate::brain::Brain;
 use crate::economy::{Coins, Job, SAFETY_SAVINGS};
 use crate::genome::{Gene, Genome};
 use crate::memory::Mind;
@@ -70,6 +71,8 @@ pub struct Agent {
     pub baby_cooldown: u32,
     /// Memories and feelings about other people.
     pub mind: Mind,
+    /// What this person has learned about how to treat people.
+    pub brain: Brain,
     /// Number of times this person has been convicted.
     pub record: u32,
     /// When a prison sentence ends, if serving one.
@@ -78,6 +81,7 @@ pub struct Agent {
 
 impl Agent {
     pub fn new(id: AgentId, name: String, genome: Genome, pos: (i32, i32), money: Coins) -> Self {
+        let brain = Brain::from_genome(&genome);
         Self {
             id,
             name,
@@ -99,6 +103,7 @@ impl Agent {
             parents: None,
             generation: 0,
             baby_cooldown: 0,
+            brain,
             mind: Mind::default(),
             record: 0,
             jailed_until: None,

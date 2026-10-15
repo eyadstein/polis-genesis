@@ -2,7 +2,7 @@
 
 import { faceFor, faceSvg } from "../faces";
 import { years } from "../stats";
-import type { Person, Town } from "../types";
+import type { Mind, Person, Town } from "../types";
 import { SimClock, TICKS_PER_DAY, clockLabel, phaseName } from "./clock";
 import { residentsByFloor, workersOf, type Building, type Layout } from "./layout";
 import { QUIET_NEWS } from "./news";
@@ -55,6 +55,20 @@ function link(label: string, onClick: () => void): HTMLButtonElement {
   b.type = "button";
   b.addEventListener("click", onClick);
   return b;
+}
+
+function percent(share: number): string {
+  return `${Math.round(share * 100)} percent`;
+}
+
+/** The lessons a person has learned, in plain words. */
+export function mindRows(mind: Mind): [string, string][] {
+  return [
+    ["Conversations", mind.experience === 0 ? "none yet" : `${mind.experience} lessons so far`],
+    ["Greets back", percent(mind.greets_back)],
+    ["Ignores", percent(mind.ignores)],
+    ["Picks fights", percent(mind.quarrels)],
+  ];
 }
 
 function moodWord(mood: number): string {
@@ -253,6 +267,7 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
         ["Parents", parents ?? "unknown"],
         ["Friends", String(p.friends)],
       ]),
+      ...(p.mind ? [el("h3", "hud-section", "What life taught them"), facts(mindRows(p.mind))] : []),
       close,
     );
   }

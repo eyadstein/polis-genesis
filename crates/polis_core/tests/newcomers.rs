@@ -40,18 +40,16 @@ fn newcomers_get_their_own_names_and_faces() {
 }
 
 #[test]
-fn the_town_keeps_living_with_newcomers() {
+fn the_town_gets_to_know_newcomers() {
     let mut world = town(5);
     world.run(50);
     world.add_newcomers(10);
-    world.run(300);
+    world.run(1000);
     let alive = world.agents.iter().filter(|a| a.is_alive()).count();
     assert!(alive > 10);
-    assert!(world
-        .agents
-        .iter()
-        .skip(60)
-        .any(|a| a.mind.friends() > 0 || a.home.is_some() || a.job.is_some()));
+    let newcomers = || world.agents.iter().skip(60).take(10);
+    assert!(newcomers().filter(|a| !a.mind.relations.is_empty()).count() >= 5);
+    assert!(newcomers().any(|a| a.mind.friends() > 0 || a.home.is_some()));
 }
 
 #[test]

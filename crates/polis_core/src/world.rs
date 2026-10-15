@@ -1,6 +1,7 @@
 //! The world: a grid with food, an economy, and the people living in it.
 
 use crate::agent::{money_pressure, Action, Agent, AgentId, Death, Percept, ADULT_AGE};
+use crate::brain::Brain;
 use crate::economy::{
     gini, surplus, Coins, Economy, Job, HOUSING_PERIOD, MEAL_RESTORE, RENT_PERIOD, RESERVE,
 };
@@ -849,6 +850,7 @@ impl World {
             let name = self.names.fresh(&mut self.rng);
             let id = (agents.len() + newborns.len()) as AgentId;
             let mut child = Agent::new(id, name, genome, a.pos, 0);
+            child.brain = Brain::inherit(&child.brain, &a.brain, &b.brain);
             child.home = Some(home);
             child.parents = Some((a.id, b.id));
             child.generation = a.generation.max(b.generation) + 1;
@@ -1156,6 +1158,7 @@ impl World {
             mix(agent.mind.relations.len() as u64);
             mix(agent.mind.memories.len() as u64);
             mix(u64::from(agent.record));
+            mix(agent.brain.fingerprint());
             mix(agent.jailed_until.unwrap_or(0));
         }
         for home in &self.economy.realty.homes {

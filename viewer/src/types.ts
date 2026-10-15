@@ -16,6 +16,8 @@ export interface Person {
   record: number;
   jailed: boolean;
   friends: number;
+  /** What this person has learned about treating people. Missing in older town files. */
+  mind?: Mind | null;
   mood: number;
   hunger: number;
   x: number;
@@ -79,3 +81,11 @@ export interface Town {
 }
 
 export const FORMAT_VERSION = 2;
+
+/** Shares from 0 to 1 of how someone treats the people they know. */
+export interface Mind {
+  experience: number;
+  greets_back: number;
+  ignores: number;
+  quarrels: number;
+}

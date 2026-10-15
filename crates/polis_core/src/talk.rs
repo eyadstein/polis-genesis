@@ -5,6 +5,7 @@
 //! into words is the job of the `polis_mind` crate.
 
 use crate::agent::{Agent, AgentId};
+use crate::brain::{features, Features, OPENERS, REPLIES};
 use crate::family::compatibility;
 use crate::genome::Gene;
 use crate::memory::{Event, Memory};
@@ -19,42 +20,82 @@ pub enum Act {
     Quarrel,
 }
 
+const OPENER_ACTS: [Act; OPENERS] = [Act::Smalltalk, Act::Gossip, Act::Confide, Act::Quarrel];
+
+/// How the listener answered a greeting.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reply {
+    /// Greeted back, and the conversation went on.
+    Greeted,
+    /// A short nod and nothing more.
+    Nodded,
+    /// No answer at all.
+    Ignored,
+}
+
+const REPLY_CHOICES: [Reply; REPLIES] = [Reply::Greeted, Reply::Nodded, Reply::Ignored];
+
 #[derive(Clone, Debug)]
 pub struct Utterance {
     pub tick: u64,
     pub speaker: AgentId,
     pub listener: AgentId,
     pub act: Act,
+    /// How the listener answered the greeting.
+    pub reply: Reply,
     /// The person being gossiped about.
     pub about: Option<AgentId>,
     /// How the speaker feels about the listener after the conversation.
     pub warmth: f32,
 }
 
-/// What the speaker decides to say, from temperament and how they feel
-/// about the listener.
-pub fn choose_act(speaker: &Agent, listener: &Agent, rng: &mut Rng) -> (Act, Option<AgentId>) {
-    let affinity = speaker.mind.affinity_for(listener.id);
-    let g = &speaker.genome;
-    let edge = (g.get(Gene::Neuroticism) - g.get(Gene::Agreeableness)).max(0.0);
-    let quarrel = (0.03 + 0.2 * edge) * if affinity < 0.0 { 2.0 } else { 0.5 };
-    if rng.chance(quarrel) {
-        return (Act::Quarrel, None);
-    }
-    if affinity > 0.5 && rng.chance(0.15 + 0.25 * g.get(Gene::Openness)) {
-        return (Act::Confide, None);
-    }
-    if let Some(memory) = speaker.mind.vivid_about_others(speaker.id, listener.id) {
-        if rng.chance(0.2 + 0.4 * g.get(Gene::Extraversion)) {
-            return (Act::Gossip, memory.about);
-        }
-    }
-    (Act::Smalltalk, None)
+/// Feelings of comfort count for a lot, and so does growing fonder.
+const SOCIAL_WEIGHT: f32 = 8.0;
+const AFFINITY_WEIGHT: f32 = 1.5;
+
+/// What the speaker could say right now, and who they could gossip about.
+fn allowed_openers(speaker: &Agent, listener: &Agent) -> ([bool; OPENERS], Option<AgentId>) {
+    let memory = speaker.mind.vivid_about_others(speaker.id, listener.id);
+    let close = speaker.mind.affinity_for(listener.id) > 0.25;
+    (
+        [true, memory.is_some(), close, true],
+        memory.and_then(|m| m.about),
+    )
 }
 
-/// Hold a conversation and apply what it does to both people.
-pub fn converse(speaker: &mut Agent, listener: &mut Agent, tick: u64, rng: &mut Rng) -> Utterance {
-    let (act, about) = choose_act(speaker, listener, rng);
+struct Opening {
+    act: usize,
+    about: Option<AgentId>,
+    x: Features,
+    allowed: [bool; OPENERS],
+}
+
+fn open(speaker: &Agent, listener: &Agent, rng: &mut Rng) -> Opening {
+    let (allowed, about) = allowed_openers(speaker, listener);
+    let x = features(speaker, listener.id);
+    let act = speaker.brain.opener.choose(&x, &allowed, rng);
+    let about = if OPENER_ACTS[act] == Act::Gossip {
+        about
+    } else {
+        None
+    };
+    Opening {
+        act,
+        about,
+        x,
+        allowed,
+    }
+}
+
+/// What the speaker decides to say. Learned, so it differs from person to
+/// person and changes with what has worked for them.
+pub fn choose_act(speaker: &Agent, listener: &Agent, rng: &mut Rng) -> (Act, Option<AgentId>) {
+    let opening = open(speaker, listener, rng);
+    (OPENER_ACTS[opening.act], opening.about)
+}
+
+/// What the conversation itself does to the two people, once it has begun.
+fn play(speaker: &mut Agent, listener: &mut Agent, act: Act, about: Option<AgentId>, tick: u64) {
     let (s_id, l_id) = (speaker.id, listener.id);
     let pleasant = compatibility(&speaker.genome, &listener.genome) - 0.35;
     let l_empathy = listener.genome.get(Gene::Empathy);
@@ -135,12 +176,94 @@ pub fn converse(speaker: &mut Agent, listener: &mut Agent, tick: u64, rng: &mut 
     };
     comfort(speaker, l_id);
     comfort(listener, s_id);
+}
+
+/// The speaker met the listener and the listener answered, as they have
+/// learned to. Returns what the greeting did to the two of them.
+fn greeting(speaker: &mut Agent, listener: &mut Agent, reply: Reply, tick: u64) {
+    let (s_id, l_id) = (speaker.id, listener.id);
+    match reply {
+        Reply::Greeted => {}
+        Reply::Nodded => {
+            speaker.mind.adjust_affinity(l_id, 0.005, tick);
+            listener.mind.adjust_affinity(s_id, 0.005, tick);
+            speaker.needs.add(Need::Social, 0.01);
+            listener.needs.add(Need::Social, 0.01);
+        }
+        Reply::Ignored => {
+            let sting = 1.0 + speaker.genome.get(Gene::Neuroticism);
+            speaker.mind.adjust_affinity(l_id, -0.05 * sting, tick);
+            speaker
+                .mind
+                .remember(Memory::new(tick, Event::Snubbed, Some(l_id), -0.6, 0.6));
+            listener.mind.adjust_affinity(s_id, -0.01, tick);
+            speaker.needs.add(Need::Social, -0.03);
+        }
+    }
+}
+
+/// Hold a conversation and apply what it does to both people. The speaker
+/// greets, the listener answers, and if they greet back the talk goes on.
+/// Both learn from how it went.
+pub fn converse(speaker: &mut Agent, listener: &mut Agent, tick: u64, rng: &mut Rng) -> Utterance {
+    let (s_id, l_id) = (speaker.id, listener.id);
+    let answer_x = features(listener, s_id);
+    let answer = listener
+        .brain
+        .reply
+        .choose(&answer_x, &[true; REPLIES], rng);
+    let reply = REPLY_CHOICES[answer];
+    let listener_affinity = listener.mind.affinity_for(s_id);
+    let listener_social = listener.needs.social;
+
+    greeting(speaker, listener, reply, tick);
+
+    let mut act = Act::Smalltalk;
+    let mut about = None;
+    let listener_reward = match reply {
+        Reply::Ignored => {
+            let avoided = if listener_affinity < 0.0 {
+                0.15 * -listener_affinity
+            } else {
+                -0.3 * listener_affinity
+            };
+            avoided - 0.05
+        }
+        Reply::Nodded => 0.02,
+        Reply::Greeted => {
+            let opening = open(speaker, listener, rng);
+            act = OPENER_ACTS[opening.act];
+            about = opening.about;
+            let speaker_social = speaker.needs.social;
+            let speaker_affinity = speaker.mind.affinity_for(l_id);
+            play(speaker, listener, act, about, tick);
+            let gained = |agent: &Agent, social: f32, affinity: f32, other: AgentId| {
+                SOCIAL_WEIGHT * (agent.needs.social - social)
+                    + AFFINITY_WEIGHT * (agent.mind.affinity_for(other) - affinity)
+            };
+            let speaker_reward = gained(speaker, speaker_social, speaker_affinity, l_id) + 0.3;
+            speaker.brain.opener.learn(
+                &opening.x,
+                &opening.allowed,
+                opening.act,
+                speaker_reward.clamp(-1.5, 1.5),
+            );
+            gained(listener, listener_social, listener_affinity, s_id) + 0.1
+        }
+    };
+    listener.brain.reply.learn(
+        &answer_x,
+        &[true; REPLIES],
+        answer,
+        listener_reward.clamp(-1.5, 1.5),
+    );
 
     Utterance {
         tick,
         speaker: s_id,
         listener: l_id,
         act,
+        reply,
         about,
         warmth: speaker.mind.affinity_for(l_id),
     }
@@ -149,6 +272,7 @@ pub fn converse(speaker: &mut Agent, listener: &mut Agent, tick: u64, rng: &mut 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::brain::summarize;
     use crate::genome::{Genome, GENE_COUNT};
 
     fn person(id: AgentId, genes: [f32; GENE_COUNT]) -> Agent {
@@ -284,5 +408,128 @@ mod tests {
         let (x, y) = run();
         assert!((-1.0..=1.0).contains(&x) && (-1.0..=1.0).contains(&y));
         assert_eq!(run(), (x, y));
+    }
+
+    fn counts(a: &mut Agent, b: &mut Agent, rounds: u64) -> (u32, u32, u32) {
+        let mut rng = Rng::new(21);
+        let (mut greeted, mut nodded, mut ignored) = (0, 0, 0);
+        for tick in 0..rounds {
+            match converse(a, b, tick, &mut rng).reply {
+                Reply::Greeted => greeted += 1,
+                Reply::Nodded => nodded += 1,
+                Reply::Ignored => ignored += 1,
+            }
+        }
+        (greeted, nodded, ignored)
+    }
+
+    #[test]
+    fn friends_greet_each_other_back() {
+        let (mut a, mut b) = (plain(1), plain(2));
+        a.mind.adjust_affinity(2, 0.9, 0);
+        b.mind.adjust_affinity(1, 0.9, 0);
+        let (greeted, _, ignored) = counts(&mut a, &mut b, 200);
+        assert!(greeted > 150, "{greeted}");
+        assert!(ignored < 20, "{ignored}");
+    }
+
+    #[test]
+    fn people_who_dislike_someone_do_not_greet_them_back() {
+        let (mut a, mut b) = (plain(1), plain(2));
+        b.mind.adjust_affinity(1, -0.9, 0);
+        b.mind
+            .remember(Memory::new(0, Event::Wronged, Some(1), -1.0, 1.0));
+        let mut rng = Rng::new(3);
+        let mut ignored = 0;
+        let mut greeted = 0;
+        for tick in 0..60 {
+            b.mind.adjust_affinity(1, -0.9, tick);
+            match converse(&mut a, &mut b, tick, &mut rng).reply {
+                Reply::Ignored => ignored += 1,
+                Reply::Greeted => greeted += 1,
+                Reply::Nodded => {}
+            }
+        }
+        assert!(ignored > greeted, "{ignored} against {greeted}");
+    }
+
+    #[test]
+    fn being_ignored_hurts_and_is_remembered() {
+        let (mut a, mut b) = (plain(1), rowdy(2));
+        b.mind.adjust_affinity(1, -0.9, 0);
+        let mut rng = Rng::new(8);
+        for tick in 0..400 {
+            let before = a.mind.affinity_for(2);
+            let social = a.needs.social;
+            let u = converse(&mut a, &mut b, tick, &mut rng);
+            if u.reply == Reply::Ignored {
+                assert!(a.mind.affinity_for(2) < before);
+                assert!(a.needs.social < social || social <= 0.0);
+                assert!(a.mind.memories.iter().any(|m| m.event == Event::Snubbed));
+                assert_eq!(u.act, Act::Smalltalk);
+                return;
+            }
+        }
+        panic!("nobody was ignored");
+    }
+
+    #[test]
+    fn a_greeting_that_is_not_answered_goes_nowhere() {
+        let (mut a, mut b) = (plain(1), plain(2));
+        let mut rng = Rng::new(5);
+        let mut checked = false;
+        for tick in 0..2000 {
+            b.mind.adjust_affinity(1, -0.4, tick);
+            let confided = b
+                .mind
+                .memories
+                .iter()
+                .filter(|m| m.event == Event::Confided)
+                .count();
+            let u = converse(&mut a, &mut b, tick, &mut rng);
+            if u.reply != Reply::Greeted {
+                assert_eq!(
+                    b.mind
+                        .memories
+                        .iter()
+                        .filter(|m| m.event == Event::Confided)
+                        .count(),
+                    confided
+                );
+                assert_eq!(u.about, None);
+                checked = true;
+            }
+        }
+        assert!(checked);
+    }
+
+    #[test]
+    fn people_learn_from_how_conversations_go() {
+        let (mut a, mut b) = (plain(1), plain(2));
+        let (before_a, before_b) = (a.brain.clone(), b.brain.clone());
+        counts(&mut a, &mut b, 500);
+        assert!(a.brain.experience() > 0 && b.brain.experience() > 0);
+        assert_ne!(a.brain, before_a);
+        assert_ne!(b.brain, before_b);
+        assert!(a.brain.opener.trials() + a.brain.reply.trials() <= 1000);
+    }
+
+    #[test]
+    fn two_people_with_the_same_start_grow_apart() {
+        let (mut a, mut b) = (plain(1), plain(2));
+        let mut c = plain(3);
+        counts(&mut a, &mut b, 800);
+        counts(&mut c, &mut rowdy(4), 800);
+        assert_ne!(a.brain.fingerprint(), c.brain.fingerprint());
+    }
+
+    #[test]
+    fn the_summary_follows_what_was_learned() {
+        let (mut a, mut b) = (plain(1), plain(2));
+        let before = summarize(&a);
+        counts(&mut a, &mut b, 1500);
+        let after = summarize(&a);
+        assert!(after.experience > before.experience);
+        assert!((after.greets_back - before.greets_back).abs() > 0.001);
     }
 }
