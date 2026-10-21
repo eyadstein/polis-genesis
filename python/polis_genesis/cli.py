@@ -17,6 +17,15 @@ def _run_cli(command: list[str]) -> None:
     if result.returncode:
         raise SystemExit(result.returncode)
 
+
+def _run_cargo(command: list[str]) -> None:
+    try:
+        _run_cli(command)
+    except FileNotFoundError:
+        print("cargo was not found. Please install Rust from https://rustup.rs to compile polis_cli.", file=sys.stderr)
+        raise SystemExit(1) from None
+
+
 def find_cli_binary() -> str | None:
     # Look in cargo target directories
     candidates = [
@@ -39,17 +48,16 @@ def cmd_console(args: argparse.Namespace) -> None:
     else:
         # Fall back to cargo run
         cmd = ["cargo", "run", "--release", "-p", "polis_cli", "--", "console", str(args.seed), str(args.population), str(args.ticks), str(args.delay)]
-        try:
-            _run_cli(cmd)
-        except FileNotFoundError:
-            print("cargo was not found. Please install Rust from https://rustup.rs to compile polis_cli.")
-            sys.exit(1)
+        _run_cargo(cmd)
 
 def cmd_serve(args: argparse.Namespace) -> None:
     bin_path = find_cli_binary()
     cmd = [bin_path or "cargo", "serve" if bin_path else "run", *(["--release", "-p", "polis_cli", "--", "serve"] if not bin_path else []), str(args.seed), str(args.population), str(args.port)]
     try:
-        _run_cli(cmd)
+        if bin_path:
+            _run_cli(cmd)
+        else:
+            _run_cargo(cmd)
     except KeyboardInterrupt:
         print("\nTown server stopped.")
 
