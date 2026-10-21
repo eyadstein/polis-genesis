@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseTown } from "../src/load";
 import { makeTown } from "./fixtures";
@@ -88,8 +88,8 @@ describe("parseTown", () => {
     expect(() => parseTown(JSON.stringify(impossibleGini))).toThrow("stats.gini should be between 0 and 1");
   });
 
-  it.skipIf(!existsSync("public/town.json"))("accepts a real export from polis_cli", () => {
-    const town = parseTown(readFileSync("public/town.json", "utf8"));
+  it("accepts a real export produced by polis_cli", () => {
+    const town = parseTown(readFileSync("test/fixtures/cli_export.json", "utf8"));
     expect(town.people.length).toBeGreaterThan(0);
     expect(town.districts).toHaveLength(16);
     expect(town.history.length).toBeGreaterThan(1);
