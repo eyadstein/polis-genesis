@@ -6,6 +6,9 @@ members = ["crates/polis_core", "crates/polis_mind", "crates/polis_cli"]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
+repository = "https://github.com/eyadstein/polis-genesis"
+homepage = "https://eyadstein.github.io/polis-genesis/"
+documentation = "https://eyadstein.github.io/polis-genesis/world.html"
 
 [profile.release]
 opt-level = 3

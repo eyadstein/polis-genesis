@@ -3,7 +3,7 @@ Name: polis-genesis
 Version: 0.2.0
 Summary: A living autonomous multi agent society simulation with neural minds, realistic economics, and 3D visualizer
 Author: Eyad Stein
-License: MIT
+License-Expression: MIT
 Project-URL: Homepage, https://github.com/eyadstein/polis-genesis
 Project-URL: Documentation, https://eyadstein.github.io/polis-genesis/world.html
 Project-URL: Repository, https://github.com/eyadstein/polis-genesis
@@ -12,7 +12,6 @@ Keywords: simulation,multi-agent,artificial-life,society,neural-network,generati
 Classifier: Development Status :: 4 - Beta
 Classifier: Intended Audience :: Developers
 Classifier: Intended Audience :: Science/Research
-Classifier: License :: OSI Approved :: MIT License
 Classifier: Programming Language :: Python :: 3
 Classifier: Programming Language :: Rust
 Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
@@ -24,120 +23,195 @@ Dynamic: license-file
 
 # Polis Genesis
 
+> **An autonomous town simulation where artificial life meets a living
+> 3D world.**
+
+[![ENTER THE WORLD --- Launch Live
+Demo](https://img.shields.io/badge/ENTER_THE_WORLD-Launch_Live_Demo-2ea44f?style=for-the-badge)](https://eyadstein.github.io/polis-genesis/)
+
 [![CI](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
-[![Pages](https://github.com/eyadstein/polis-genesis/actions/workflows/deploy.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/deploy.yml)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub
+Pages](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml)
+[![MIT
+License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/polis-genesis.svg)](https://pypi.org/project/polis-genesis/)
 
-A living world of autonomous people. Nobody scripts what they do. Each person is born from a genome, feels needs and moods, remembers, and chooses for themselves.
+**[🌐 Open the live simulation
+→](https://eyadstein.github.io/polis-genesis/)**
 
-* [Live 3D Web World](https://eyadstein.github.io/polis-genesis/world.html)
-* [PyPI Package](https://pypi.org/project/polis-genesis/)
+------------------------------------------------------------------------
 
-## Modes
+## Overview
 
-1. Polis: a modern town with jobs, money, love, schools, police, courts, prison, faith, and sports.
-2. Brutal Genesis: a harsh world of scarcity, predators, and disasters where species evolve under pressure.
-3. Epoch: civilization from scratch, where laws, money, religions, and countries emerge over centuries.
+**Polis Genesis** is a real-time, 3D town simulation built around
+autonomous agents. Each resident has its own genome, needs, moods,
+memories, relationships, and a neural-network-driven mind.
 
-Countries never go to war by themselves. Group conflict exists only as an optional scenario switch that is off by default.
+Residents make decisions, work, interact, form families, and participate
+in an evolving virtual society. Rather than relying entirely on scripted
+events, the simulation brings together individual behavior and
+interconnected systems to explore how a virtual society develops.
 
-## What exists so far
+Try the hosted viewer without installing anything:
 
-* Genomes, needs, moods, unique names, and a food commons
-* A conserved money supply: coins only move between people, the food market, and the realty office
-* Four jobs matched to genes (farmer, builder, mechanic, shopkeeper), each with its own pay, raised by talent and experience, and paid only from what the employer holds
-* Homes that differ by district, kind (shack, flat, house, villa), size, and condition, with rent that follows appeal, nearby services, neighbor wealth, and demand
-* Builders who build where demand is strongest, mechanics who repair worn homes, shopkeepers whose number limits how many meals the shop can serve
-* People who choose homes by taste and budget
-* A food market whose price follows scarcity, and a town dividend that keeps coins circulating
-* Couples that form between compatible adults, children who inherit a mix of both genomes with mutation, growing up, households that share a home, inheritance of money and of the home
-* Memories that fade, feelings about other people, conversations that spread gossip, and speech from a free local model (Ollama) with a rule based voice as the default
-* Crime from hunger, poverty and temper, police who solve cases, courts with judges and defence lawyers, fines with restitution, prison, criminal records, and a town treasury funded by a wealth tax
-* A JSON export of the whole town and a Python tool that reports on it
-* Inequality (Gini), housing, wage, and district reports
+**[Enter Polis Genesis](https://eyadstein.github.io/polis-genesis/)**
 
-## Principles
+## Features
 
-* Deterministic: the same seed gives the same world on every machine.
-* Unique people: every person has a unique genome and name. Children mix both parents and mutate.
-* First person minds: a person only perceives what they can see, hear, feel, and remember.
-* Free tools only: Rust, SQLite, local models, GitHub Actions.
-* Honest wording: emotions here are modeled states that drive behavior. They are not consciousness.
+-   **Autonomous agents** --- neural-network-driven behavior that learns
+    from experience.
+-   **Needs and daily life** --- food, water, sleep, work, social
+    interaction, and other needs shape decisions.
+-   **Economy** --- jobs, salaries, housing, taxes, and a shared town
+    treasury.
+-   **Families and genealogy** --- relationships, children, genetic
+    inheritance, and mutation.
+-   **Law and order** --- crime, police, courts, fines, and prisons.
+-   **Dynamic environment** --- day/night transitions, seasonal
+    lighting, waterways, fountains, and ambient sound.
+-   **Interactive 3D viewer** --- a browser-based world built with
+    Three.js and Vite.
+-   **Python CLI** --- console, server, and web commands for interacting
+    with the simulation.
+-   **Snapshots and analytics** --- JSON exports, statistical reports,
+    and replay functionality.
 
-## Install from PyPI
+## Getting Started
 
-```bash
+### Try it online
+
+Open the live demo:
+
+**https://eyadstein.github.io/polis-genesis/**
+
+### Install the Python package
+
+``` bash
 pip install polis-genesis
 ```
 
-Run in any terminal:
+### Run the simulation
 
-```bash
+Start the console interface:
+
+``` bash
 polis-genesis console
 ```
 
-Launch the local town server:
+Start the local server:
 
-```bash
+``` bash
 polis-genesis serve
 ```
 
-Open the online three dimensional visualizer:
+Open the local viewer address printed by the server. Depending on the
+configuration, it may be available at
+`http://localhost:8787/world.html`.
 
-```bash
+Launch web mode:
+
+``` bash
 polis-genesis web
 ```
 
-## Run with Cargo
+## Build from Source
 
-    cargo run --release -p polis_cli -- 1 3000 200
+### Prerequisites
 
-Arguments are seed, ticks, and population.
+-   Rust and Cargo
+-   Node.js and npm
+-   Python for Python tooling
 
-To let a local language model speak for the town, install Ollama (free), pull a model, and run:
+### Run the simulation
 
-    $env:POLIS_OLLAMA_MODEL = "llama3.2"
-    cargo run --release -p polis_cli --features ollama -- 1 3000 200
+From the repository root:
 
-## Export and analyze
+``` bash
+cargo run --release -p polis_cli -- 1 3000 200
+```
 
-Add a file name as a fourth argument to write the whole town as JSON, then read it with the Python tool (standard library only):
+### Start the 3D viewer
 
-    cargo run --release -p polis_cli -- 1 8000 200 town.json
-    python tools/analyze.py town.json
+``` bash
+cd viewer
+npm ci
+npm run dev
+```
 
-## Test
+Vite prints the local development URL in the terminal.
 
-    cargo test --all
-    cargo clippy --all-targets -- -D warnings
+### Build the production viewer
+
+From the `viewer` directory:
+
+``` bash
+npm run build
+```
+
+The generated static site is written to `viewer/dist`. GitHub Actions
+builds and deploys the viewer to GitHub Pages.
+
+## Technology Stack
+
+  Component                Technology
+  ------------------------ ----------------
+  Simulation engine        Rust
+  3D rendering             Three.js
+  Front-end tooling        Vite
+  Python interface         Python
+  Continuous integration   GitHub Actions
+  Demo hosting             GitHub Pages
 
 ## Roadmap
 
-1. Core engine, genome, needs, mood, movement (done)
-2. Economy, jobs, housing (done)
-2.5. Skill based pay, districts, home kinds and sizes, neighbors (done)
-3. Couples, children, life stages, inheritance (done)
-4. Memory, gossip, and a language model conversation layer (done)
-5. Law, police, courts, prison (done)
-6. Schools, belief systems, culture, sports
-7. Genesis survival layer and Epoch emergence
-8. Observer interface, replay, analytics
+-   [x] Core engine, genomes, needs, moods, and movement
+-   [x] Economy, jobs, and housing
+-   [x] Relationships, children, and inheritance
+-   [x] Memory and social interaction
+-   [x] Law enforcement and justice systems
+-   [ ] Schools, belief systems, culture, and sports
+-   [ ] Expanded survival mechanics and emergent epochs
+-   [ ] Enhanced observation, replay, and analytics
 
-See docs/DESIGN.md for architecture decisions.
+## Documentation
 
-## Viewer
-
-A browser viewer written in TypeScript reads the town file. You need Node.js (free, from nodejs.org).
-
-    cargo run --release -p polis_cli -- 1 8000 200 viewer/public/town.json
-    cd viewer
-    npm install
-    npm run dev
-
-Open the address it prints. The viewer shows a map of the town, a searchable list of people with their life stories and families, charts over time, and the recent conversations. Run its tests with `npm test`.
+-   [Design overview](docs/DESIGN.md)
+-   [Contributing guidelines](CONTRIBUTING.md)
+-   [Changelog](CHANGELOG.md)
+-   [License](LICENSE)
 
 ## Contributing
 
-Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), then pick an issue labeled **good first issue** or **help wanted**. See [CHANGELOG.md](CHANGELOG.md) for releases.
+Contributions, bug reports, and ideas are welcome.
 
+1.  Fork the repository.
+2.  Create a branch for your changes.
+3.  Implement your changes and add tests where appropriate.
+4.  Run the relevant checks.
+5.  Submit a pull request describing your changes.
+
+Run the Rust checks:
+
+``` bash
+cargo test --workspace --all-features --locked
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+```
+
+For viewer changes:
+
+``` bash
+cd viewer
+npm ci
+npm test
+npm run build
+```
+
+## License
+
+Distributed under the [MIT License](LICENSE).
+
+------------------------------------------------------------------------
+
+**Explore the world. Observe the agents. Watch the town evolve.**
+
+**[ENTER POLIS GENESIS →](https://eyadstein.github.io/polis-genesis/)**

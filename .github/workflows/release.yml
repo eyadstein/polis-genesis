@@ -52,3 +52,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/*/* --repo "$GITHUB_REPOSITORY" --title "Polis Genesis $GITHUB_REF_NAME" --generate-notes
+
+  pypi:
+    needs: [binaries, viewer]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/polis-genesis
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Build Python distributions
+        run: |
+          rm -rf dist
+          python -m pip install --upgrade build
+          python -m build --outdir dist
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
