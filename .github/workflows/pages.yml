@@ -1,0 +1,65 @@
+name: Deploy Polis Genesis to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and publish viewer
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+
+      - name: Install viewer dependencies
+        working-directory: viewer
+        run: npm ci
+
+      - name: TypeScript check
+        working-directory: viewer
+        run: npm run typecheck --if-present
+
+      - name: Run viewer tests
+        working-directory: viewer
+        run: npm test --if-present
+
+      - name: Build for repository URL
+        working-directory: viewer
+        run: npm run build -- --base=/polis-genesis/
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload website artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: viewer/dist
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -37,8 +37,10 @@ pub fn run(config: WorldConfig, ticks: u64, delay_ms: u64) {
 
         // Draw living agents
         for agent in world.agents.iter().filter(|a| a.is_alive()) {
-            let gx = ((agent.pos.0 as usize * (width - 3)) / (world.width as usize)).clamp(0, width - 3);
-            let gy = ((agent.pos.1 as usize * height) / (world.height as usize)).clamp(0, height - 1);
+            let gx =
+                ((agent.pos.0 as usize * (width - 3)) / (world.width as usize)).clamp(0, width - 3);
+            let gy =
+                ((agent.pos.1 as usize * height) / (world.height as usize)).clamp(0, height - 1);
             let ch = match agent.action {
                 polis_core::Action::Eat => 'E',
                 polis_core::Action::Drink => 'D',

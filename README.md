@@ -1,7 +1,9 @@
 # Polis Genesis
 
+**[🌐 Open the Polis Genesis live demo](https://eyadstein.github.io/polis-genesis/)**
+
 [![CI](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
-[![Pages](https://github.com/eyadstein/polis-genesis/actions/workflows/deploy.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/deploy.yml)
+[![Pages](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/polis-genesis.svg)](https://pypi.org/project/polis-genesis/)
 

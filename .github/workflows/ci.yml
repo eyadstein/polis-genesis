@@ -1,24 +1,80 @@
-name: ci
-on: [push, pull_request]
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  check:
+  rust:
+    name: Rust and Python checks
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-      - run: cargo fmt --all -- --check
-      - run: cargo clippy --all-targets --all-features -- -D warnings
-      - run: cargo test --all --all-features
-      - run: python3 -m unittest discover -s tools
-      - run: cargo run --release -p polis_cli -- 1 3000 120 viewer/public/town.json
-      - uses: actions/setup-node@v4
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 22
-      - run: npm install
+          python-version: "3.x"
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Rust tests
+        run: cargo test --workspace --all-features --locked
+
+      - name: Run Clippy
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Run Python tool tests
+        run: python -m unittest discover -s tools
+
+      - name: Smoke-test simulation output
+        run: cargo run --release -p polis_cli -- 1 3000 120 viewer/public/town.json
+
+  viewer:
+    name: Viewer checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: npm
+          cache-dependency-path: viewer/package-lock.json
+
+      - name: Install dependencies
         working-directory: viewer
-      - run: npm run build
+        run: npm ci
+
+      - name: TypeScript check
         working-directory: viewer
-      - run: npm test
+        run: npm run typecheck --if-present
+
+      - name: Run viewer tests
         working-directory: viewer
+        run: npm test --if-present
+
+      - name: Build viewer
+        working-directory: viewer
+        run: npm run build -- --base=/polis-genesis/
