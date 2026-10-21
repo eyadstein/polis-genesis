@@ -37,6 +37,8 @@ export interface HistoryPoint {
   vacant: number;
   mean_money: number;
   mean_rent: number;
+  /** Added in town format 3; absent from older snapshots. */
+  food_stock?: number;
   crimes: number;
   convictions: number;
   treasury: number;
@@ -70,6 +72,8 @@ export interface Justice {
 
 export interface Town {
   version: number;
+  /** Present in town format 3; omitted by earlier exports. */
+  run?: RunMetadata;
   tick: number;
   width: number;
   height: number;
@@ -81,7 +85,16 @@ export interface Town {
   conversations: Conversation[];
 }
 
-export const FORMAT_VERSION = 2;
+export interface RunMetadata {
+  /** Decimal string preserves the full unsigned 64-bit seed exactly. */
+  seed: string;
+  initial_population: number;
+  width: number;
+  height: number;
+}
+
+export const FORMAT_VERSION = 3;
+export const SUPPORTED_FORMAT_VERSIONS = [2, FORMAT_VERSION] as const;
 
 /** Shares from 0 to 1 of how someone treats the people they know. */
 export interface Mind {

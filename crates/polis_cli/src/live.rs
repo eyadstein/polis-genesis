@@ -60,8 +60,17 @@ fn rows_of(world: &World) -> Vec<Row> {
 }
 
 impl Engine {
+    #[cfg(test)]
     pub fn new(config: WorldConfig) -> Self {
         let world = World::new(config);
+        Self::from_world(world)
+    }
+
+    pub fn try_new(config: WorldConfig) -> Result<Self, String> {
+        World::try_new(config).map(Self::from_world)
+    }
+
+    fn from_world(world: World) -> Self {
         let history = vec![export::history_point(&world)];
         let mut engine = Self {
             world,

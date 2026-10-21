@@ -5,8 +5,8 @@ use polis_mind::speaker::{RuleSpeaker, Speaker};
 use std::thread::sleep;
 use std::time::Duration;
 
-pub fn run(config: WorldConfig, ticks: u64, delay_ms: u64) {
-    let mut world = World::new(config);
+pub fn run(config: WorldConfig, ticks: u64, delay_ms: u64) -> Result<(), String> {
+    let mut world = World::try_new(config)?;
     let mut voice = RuleSpeaker::new();
     let width = 36;
     let height = 18;
@@ -92,4 +92,5 @@ pub fn run(config: WorldConfig, ticks: u64, delay_ms: u64) {
             sleep(Duration::from_millis(delay_ms));
         }
     }
+    Ok(())
 }

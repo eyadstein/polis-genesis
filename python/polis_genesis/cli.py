@@ -2,12 +2,20 @@
 Command line interface for Polis Genesis.
 """
 
+from __future__ import annotations
+
 import argparse
 import os
 import shutil
 import subprocess
 import sys
 import webbrowser
+
+
+def _run_cli(command: list[str]) -> None:
+    result = subprocess.run(command)
+    if result.returncode:
+        raise SystemExit(result.returncode)
 
 def find_cli_binary() -> str | None:
     # Look in cargo target directories
@@ -27,12 +35,12 @@ def find_cli_binary() -> str | None:
 def cmd_console(args: argparse.Namespace) -> None:
     bin_path = find_cli_binary()
     if bin_path:
-        subprocess.run([bin_path, "console", str(args.seed), str(args.population), str(args.ticks), str(args.delay)])
+        _run_cli([bin_path, "console", str(args.seed), str(args.population), str(args.ticks), str(args.delay)])
     else:
         # Fall back to cargo run
         cmd = ["cargo", "run", "--release", "-p", "polis_cli", "--", "console", str(args.seed), str(args.population), str(args.ticks), str(args.delay)]
         try:
-            subprocess.run(cmd)
+            _run_cli(cmd)
         except FileNotFoundError:
             print("cargo was not found. Please install Rust from https://rustup.rs to compile polis_cli.")
             sys.exit(1)
@@ -41,7 +49,7 @@ def cmd_serve(args: argparse.Namespace) -> None:
     bin_path = find_cli_binary()
     cmd = [bin_path or "cargo", "serve" if bin_path else "run", *(["--release", "-p", "polis_cli", "--", "serve"] if not bin_path else []), str(args.seed), str(args.population), str(args.port)]
     try:
-        subprocess.run(cmd)
+        _run_cli(cmd)
     except KeyboardInterrupt:
         print("\nTown server stopped.")
 

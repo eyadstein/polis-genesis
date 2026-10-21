@@ -89,7 +89,16 @@ impl Recorder {
         self.frames.len()
     }
 
-    pub fn finish(self, world: &World) -> Value {
+    pub fn finish(mut self, world: &World) -> Value {
+        if self
+            .frames
+            .last()
+            .and_then(|value| value.get("tick"))
+            .and_then(Value::as_u64)
+            != Some(world.tick)
+        {
+            self.frames.push(frame(world));
+        }
         json!({
             "version": REPLAY_VERSION,
             "width": world.width,
@@ -175,6 +184,22 @@ mod tests {
         let (wa, a) = run(120);
         let (wb, b) = run(120);
         assert_eq!(a.finish(&wa), b.finish(&wb));
+    }
+
+    #[test]
+    fn a_run_shorter_than_the_frame_interval_still_has_a_final_frame() {
+        let world = World::new(WorldConfig {
+            seed: 4,
+            population: 4,
+            ..WorldConfig::default()
+        });
+        let mut recorder = Recorder::new(10);
+        let mut world = world;
+        world.step();
+        recorder.observe(&world);
+        let replay = recorder.finish(&world);
+        assert_eq!(replay["frames"].as_array().unwrap().len(), 1);
+        assert_eq!(replay["frames"][0]["tick"], 1);
     }
 
     #[test]

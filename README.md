@@ -90,6 +90,8 @@ Analyze the exported snapshot with the Python standard library:
 python tools/analyze.py town.json
 ```
 
+Town exports use format 3 and record the exact seed, initial population, map size, and market food stock over time. The viewer also reads format 2 snapshots.
+
 ### Run the live 3D viewer locally
 
 In one terminal at the repository root, start the simulation server:

@@ -26,13 +26,64 @@ export const REPLAY_VERSION = 1;
 export const LIVE_FRAME_LIMIT = 4000;
 export const LIVE_TALK_LIMIT = 20_000;
 
+function record(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function safeInteger(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value);
+}
+
 export function parseReplay(raw: unknown): Replay {
-  const r = raw as Partial<Replay> | null;
-  if (!r || typeof r !== "object") throw new Error("replay.json is not an object");
+  if (!record(raw)) throw new Error("replay.json is not an object");
+  const r = raw as Partial<Replay>;
   if (r.version !== REPLAY_VERSION) throw new Error(`replay version ${String(r.version)} is not supported`);
   if (!Array.isArray(r.frames) || r.frames.length === 0) throw new Error("replay has no frames");
   if (!Array.isArray(r.talk) || !Array.isArray(r.actions)) throw new Error("replay is incomplete");
-  if (typeof r.width !== "number" || typeof r.height !== "number") throw new Error("replay has no size");
+  if (!safeInteger(r.width) || r.width <= 0 || !safeInteger(r.height) || r.height <= 0) {
+    throw new Error("replay has an invalid size");
+  }
+  if (!safeInteger(r.every) || r.every <= 0) throw new Error("replay has an invalid frame interval");
+  if (r.actions.length === 0 || r.actions.some((action) => typeof action !== "string" || action.length === 0)) {
+    throw new Error("replay has invalid actions");
+  }
+  let previousTick = -1;
+  for (const [index, value] of r.frames.entries()) {
+    if (!record(value) || !safeInteger(value.tick) || value.tick < 0 || value.tick <= previousTick) {
+      throw new Error(`replay frame ${index} has an invalid or out-of-order tick`);
+    }
+    previousTick = value.tick;
+    if (!Array.isArray(value.p)) throw new Error(`replay frame ${index} has no people rows`);
+    const ids = new Set<number>();
+    for (const [rowIndex, row] of value.p.entries()) {
+      if (
+        !Array.isArray(row) ||
+        row.length !== 5 ||
+        !safeInteger(row[0]) || row[0] < 0 ||
+        !safeInteger(row[1]) || row[1] < 0 || row[1] >= r.width ||
+        !safeInteger(row[2]) || row[2] < 0 || row[2] >= r.height ||
+        !safeInteger(row[3]) || row[3] < 0 || row[3] >= r.actions.length ||
+        (row[4] !== 0 && row[4] !== 1)
+      ) {
+        throw new Error(`replay frame ${index} person row ${rowIndex} is invalid`);
+      }
+      if (ids.has(row[0])) throw new Error(`replay frame ${index} repeats person ${row[0]}`);
+      ids.add(row[0]);
+    }
+  }
+  let previousTalkTick = -1;
+  for (const [index, line] of r.talk.entries()) {
+    if (
+      !Array.isArray(line) || line.length !== 4 ||
+      !safeInteger(line[0]) || line[0] < previousTalkTick ||
+      !safeInteger(line[1]) || line[1] < 0 ||
+      !safeInteger(line[2]) || line[2] < 0 ||
+      typeof line[3] !== "string"
+    ) {
+      throw new Error(`replay conversation ${index} is invalid`);
+    }
+    previousTalkTick = line[0];
+  }
   return r as Replay;
 }
 

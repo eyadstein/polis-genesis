@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+* Validate world dimensions and reject empty populations before allocating simulation state; add fallible `World::try_new` for callers that need actionable configuration errors.
+* Record the exact seed, initial population, map dimensions, and market food stock in town export format 3. The viewer continues to read format 2 and charts recorded food availability when present.
+* Validate replay frame rows and conversation records before playback, and always record a final frame for short runs.
+* Propagate native simulation failures through the Python command exit status and exercise the package tests on its declared Python 3.9 minimum.
+
 ## 0.2.1
 
 * Python package polis genesis for PyPI distribution

@@ -58,6 +58,8 @@ export function summaryHtml(town: Town): string {
     ["Inequality (Gini)", (s.gini ?? 0).toFixed(2)],
     ["Employed", String(s.employed)],
     ["Homeless", String(s.homeless)],
+    ["Market food stock", s.food_stock === undefined ? "Not recorded" : String(s.food_stock)],
+    ["Run seed", town.run ? String(town.run.seed) : "Not recorded"],
     ["Crimes", String(town.justice.crimes)],
     ["In prison", String(town.justice.jailed)],
   ];
@@ -157,7 +159,10 @@ ${historyChart("Crime and the town treasury over time", h, [
     { key: "crimes", label: "Crimes", color: "#9a3f27" },
     { key: "convictions", label: "Convictions", color: "#33478f" },
     { key: "treasury", label: "Treasury", color: "#1c5a56" },
-  ])}`;
+  ])}
+${h.length > 0 && h.every((point) => point.food_stock !== undefined)
+    ? `<h2>Market food stock</h2>${historyChart("Market food stock over time", h, [{ key: "food_stock", label: "Market stock", color: "#6b8f32" }])}`
+    : ""}`;
 }
 
 export function talkTabHtml(town: Town): string {

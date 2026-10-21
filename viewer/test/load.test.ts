@@ -13,9 +13,30 @@ describe("parseTown", () => {
     expect(() => parseTown("not json")).toThrow("not valid JSON");
   });
 
-  it("rejects another format version and says what to do", () => {
+  it("rejects unsupported format versions and says what to do", () => {
     const old = { ...makeTown(), version: 1 };
-    expect(() => parseTown(JSON.stringify(old))).toThrow(/version 2.*version 1/);
+    expect(() => parseTown(JSON.stringify(old))).toThrow(/formats 2 and 3.*version 1/);
+  });
+
+  it("continues to read version 2 exports without run metadata", () => {
+    const old = { ...makeTown(), version: 2 };
+    delete (old as Partial<typeof old>).run;
+    expect(parseTown(JSON.stringify(old)).version).toBe(2);
+  });
+
+  it("requires run metadata and matching dimensions in version 3", () => {
+    const missing = { ...makeTown() };
+    delete (missing as Partial<typeof missing>).run;
+    expect(() => parseTown(JSON.stringify(missing))).toThrow('run should be an object');
+
+    const mismatched = { ...makeTown(), run: { ...makeTown().run!, width: 32 } };
+    expect(() => parseTown(JSON.stringify(mismatched))).toThrow("run dimensions do not match");
+
+    const preciseSeed = { ...makeTown(), run: { ...makeTown().run!, seed: "18446744073709551615" } };
+    expect(parseTown(JSON.stringify(preciseSeed)).run?.seed).toBe("18446744073709551615");
+
+    const invalidSeed = { ...makeTown(), run: { ...makeTown().run!, seed: "18446744073709551616" } };
+    expect(() => parseTown(JSON.stringify(invalidSeed))).toThrow("unsigned 64-bit decimal string");
   });
 
   it("names the field when a person is missing one", () => {
@@ -41,6 +62,30 @@ describe("parseTown", () => {
     const town = JSON.parse(JSON.stringify(makeTown()));
     delete town.people;
     expect(() => parseTown(JSON.stringify(town))).toThrow("people should be a list");
+  });
+
+  it("rejects malformed history and invalid resource counts", () => {
+    const brokenHistory = JSON.parse(JSON.stringify(makeTown()));
+    brokenHistory.history[1].treasury = "many";
+    expect(() => parseTown(JSON.stringify(brokenHistory))).toThrow('history[1] has a bad or missing field "treasury"');
+
+    const brokenStock = JSON.parse(JSON.stringify(makeTown()));
+    brokenStock.stats.food_stock = -1;
+    expect(() => parseTown(JSON.stringify(brokenStock))).toThrow("stats.food_stock should be a non-negative integer");
+
+    const missingStock = JSON.parse(JSON.stringify(makeTown()));
+    delete missingStock.history[0].food_stock;
+    expect(() => parseTown(JSON.stringify(missingStock))).toThrow("history[0].food_stock is missing");
+  });
+
+  it("rejects missing summary values and invalid aggregate ranges", () => {
+    const missingAlive = JSON.parse(JSON.stringify(makeTown()));
+    delete missingAlive.stats.alive;
+    expect(() => parseTown(JSON.stringify(missingAlive))).toThrow('stats has a bad or missing field "alive"');
+
+    const impossibleGini = JSON.parse(JSON.stringify(makeTown()));
+    impossibleGini.stats.gini = 1.4;
+    expect(() => parseTown(JSON.stringify(impossibleGini))).toThrow("stats.gini should be between 0 and 1");
   });
 
   it.skipIf(!existsSync("public/town.json"))("accepts a real export from polis_cli", () => {
