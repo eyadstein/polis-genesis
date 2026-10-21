@@ -17,7 +17,7 @@ use crate::names::NameBook;
 use crate::needs::Need;
 use crate::rng::Rng;
 use crate::talk::{converse, Act, Utterance};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
 #[derive(Clone, Debug)]
 pub struct WorldConfig {
@@ -310,8 +310,9 @@ impl World {
         self.wrap((pos.0 + dx, pos.1 + dy))
     }
 
-    fn crowd_map(&self) -> BTreeMap<(i32, i32), u32> {
-        let mut crowd = BTreeMap::new();
+    fn crowd_map(&self) -> HashMap<(i32, i32), u32> {
+        // This map is only queried by position; iteration order never affects simulation behavior.
+        let mut crowd = HashMap::with_capacity(self.agents.len());
         for agent in self.agents.iter().filter(|a| a.is_alive()) {
             *crowd.entry(agent.pos).or_insert(0) += 1;
         }
@@ -1070,7 +1071,7 @@ impl World {
     fn live_one_tick(
         &mut self,
         agent: &mut Agent,
-        crowd: &BTreeMap<(i32, i32), u32>,
+        crowd: &HashMap<(i32, i32), u32>,
         labor: &mut Labor,
         homeless: usize,
     ) {

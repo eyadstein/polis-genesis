@@ -65,6 +65,22 @@ fn same_seed_gives_identical_worlds() {
 }
 
 #[test]
+fn crowded_tile_lookups_remain_deterministic() {
+    let mut a = World::new(small_config(71));
+    let mut b = World::new(small_config(71));
+    for agent in &mut a.agents {
+        agent.pos = (16, 16);
+    }
+    for agent in &mut b.agents {
+        agent.pos = (16, 16);
+    }
+
+    a.run(300);
+    b.run(300);
+    assert_eq!(a.state_hash(), b.state_hash());
+}
+
+#[test]
 fn different_seeds_diverge() {
     let mut a = World::new(small_config(1));
     let mut b = World::new(small_config(2));

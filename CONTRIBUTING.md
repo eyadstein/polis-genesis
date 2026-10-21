@@ -18,6 +18,10 @@ Run all of these. CI runs them too.
     cargo test --all --all-features
     cd viewer && npm run typecheck && npm test
 
+## Benchmark simulation runs
+
+Run `python -B tools/benchmark_simulation.py --build --repetitions 3` from the repository root to compare release-mode simulations at several population sizes and run lengths. It excludes one warm-up, reports medians and deterministic state hashes, and compares runs with and without snapshot export. Timings include CLI startup and reporting, so compare revisions on the same machine under similar load.
+
 ## Rules of the world
 
 * Deterministic: the same seed must give the same world. Use the world's own random generator, never the clock.
