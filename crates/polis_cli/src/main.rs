@@ -61,11 +61,18 @@ fn arg(index: usize, default: u64) -> u64 {
         .unwrap_or(default)
 }
 
+fn population_arg(index: usize, default: u32) -> u32 {
+    u32::try_from(arg(index, u64::from(default))).unwrap_or_else(|_| {
+        eprintln!("population must be between 1 and {}", u32::MAX);
+        std::process::exit(2);
+    })
+}
+
 /// `polis_cli serve [seed] [population] [port]`
 fn serve() {
     let config = WorldConfig {
         seed: arg(2, 1),
-        population: arg(3, 200) as u32,
+        population: population_arg(3, 200),
         ..WorldConfig::default()
     };
     let port = u16::try_from(arg(4, u64::from(serve::DEFAULT_PORT))).unwrap_or(serve::DEFAULT_PORT);
@@ -84,21 +91,27 @@ fn main() {
     if mode.as_deref() == Some("console") {
         let config = WorldConfig {
             seed: arg(2, 1),
-            population: arg(3, 120) as u32,
+            population: population_arg(3, 120),
             ..WorldConfig::default()
         };
         let ticks = arg(4, 500);
         let delay_ms = arg(5, 80);
-        console::run(config, ticks, delay_ms);
+        if let Err(error) = console::run(config, ticks, delay_ms) {
+            eprintln!("could not start simulation: {error}");
+            std::process::exit(2);
+        }
         return;
     }
     let config = WorldConfig {
         seed: arg(1, 1),
-        population: arg(3, 200) as u32,
+        population: population_arg(3, 200),
         ..WorldConfig::default()
     };
     let ticks = arg(2, 3000);
-    let mut world = World::new(config);
+    let mut world = World::try_new(config).unwrap_or_else(|error| {
+        eprintln!("could not start simulation: {error}");
+        std::process::exit(2);
+    });
     let mut history = vec![export::history_point(&world)];
     let mut recorder = replay::Recorder::new(arg(6, 10));
 

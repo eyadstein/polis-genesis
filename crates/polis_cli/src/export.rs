@@ -1,16 +1,16 @@
 //! Writes the whole town as JSON so other languages can read it: Python for
 //! analysis, and the TypeScript viewer in the browser.
 //!
-//! The format has a version number. Version 2 adds map positions, each
-//! person's inner voice, districts, a history of the whole run, and the
-//! recent conversations in words.
+//! The format has a version number. Version 3 adds run metadata and food-stock
+//! measurements to the version 2 snapshot, which includes map positions,
+//! districts, history, and conversations in words.
 
 use polis_core::{report, Job, Stats, World};
 use polis_mind::prompt::inner_voice;
 use polis_mind::speaker::{RuleSpeaker, Speaker};
 use serde_json::{json, Value};
 
-pub const FORMAT_VERSION: u32 = 2;
+pub const FORMAT_VERSION: u32 = 3;
 
 fn job_name(job: Option<Job>) -> Value {
     match job {
@@ -78,6 +78,7 @@ fn stats_json(s: &Stats) -> Value {
         "vacant": s.vacant,
         "mean_rent": s.mean_rent,
         "food_price": s.food_price,
+        "food_stock": s.food_stock,
         "friends": s.friends,
         "conversations": s.conversations,
         "gossips": s.gossips,
@@ -102,6 +103,7 @@ pub fn history_point(world: &World) -> Value {
         "vacant": s.vacant,
         "mean_money": s.mean_money,
         "mean_rent": s.mean_rent,
+        "food_stock": s.food_stock,
         "crimes": s.crimes,
         "convictions": s.convictions,
         "treasury": s.treasury,
@@ -147,6 +149,12 @@ pub fn snapshot(world: &World, history: &[Value]) -> Value {
     let s = world.stats();
     json!({
         "version": FORMAT_VERSION,
+        "run": {
+            "seed": world.seed.to_string(),
+            "initial_population": world.initial_population,
+            "width": world.width,
+            "height": world.height,
+        },
         "tick": world.tick,
         "width": world.width,
         "height": world.height,
@@ -204,7 +212,26 @@ mod tests {
         assert_eq!(json["stats"]["alive"], stats.alive);
         assert_eq!(json["stats"]["crimes"], stats.crimes);
         assert_eq!(json["stats"]["treasury"], stats.treasury);
+        assert_eq!(json["stats"]["food_stock"], stats.food_stock);
         assert_eq!(json["justice"]["treasury"], stats.treasury);
+    }
+
+    #[test]
+    fn exports_include_reproducible_run_metadata_and_resource_history() {
+        let world = World::new(WorldConfig {
+            seed: 17,
+            population: 8,
+            ..WorldConfig::default()
+        });
+        let point = history_point(&world);
+        let json = snapshot(&world, std::slice::from_ref(&point));
+        assert_eq!(json["version"], 3);
+        assert_eq!(json["run"]["seed"], "17");
+        assert_eq!(json["run"]["initial_population"], 8);
+        assert_eq!(json["run"]["width"], world.width);
+        assert_eq!(json["run"]["height"], world.height);
+        assert_eq!(json["stats"]["food_stock"], world.stats().food_stock);
+        assert_eq!(json["history"][0]["food_stock"], world.stats().food_stock);
     }
 
     #[test]

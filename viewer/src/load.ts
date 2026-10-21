@@ -1,4 +1,4 @@
-import { FORMAT_VERSION, type Town } from "./types";
+import { FORMAT_VERSION, SUPPORTED_FORMAT_VERSIONS, type Town } from "./types";
 
 type Shape = "number" | "string" | "boolean" | "number|null" | "string|null";
 
@@ -47,6 +47,7 @@ const CONVERSATION_FIELDS: Record<string, Shape> = {
 function matches(value: unknown, shape: Shape): boolean {
   return shape.split("|").some((part) => {
     if (part === "null") return value === null;
+    if (part === "number") return typeof value === "number" && Number.isFinite(value);
     return typeof value === part;
   });
 }
@@ -84,22 +85,103 @@ export function parseTown(text: string): Town {
   } catch {
     throw new Error("That file is not valid JSON");
   }
-  if (typeof raw !== "object" || raw === null) {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new Error("That file does not hold a town");
   }
   const town = raw as Record<string, unknown>;
-  if (town.version !== FORMAT_VERSION) {
+  if (!SUPPORTED_FORMAT_VERSIONS.includes(town.version as (typeof SUPPORTED_FORMAT_VERSIONS)[number])) {
     throw new Error(
-      `This viewer reads format version ${FORMAT_VERSION}, but the file is version ${String(town.version)}. Export the town again with the latest polis_cli.`,
+      `This viewer reads town formats ${SUPPORTED_FORMAT_VERSIONS.join(" and ")}, but the file is version ${String(town.version)}. Export the town again with the latest polis_cli.`,
     );
   }
   for (const key of ["tick", "width", "height"]) {
-    if (typeof town[key] !== "number") throw new Error(`Town is missing "${key}"`);
+    if (typeof town[key] !== "number" || !Number.isFinite(town[key])) {
+      throw new Error(`Town is missing a finite "${key}"`);
+    }
   }
+  if (!Number.isSafeInteger(town.tick) || (town.tick as number) < 0) throw new Error("Town has a bad tick");
+  if (!Number.isSafeInteger(town.width) || (town.width as number) < 4) throw new Error("Town has a bad width");
+  if (!Number.isSafeInteger(town.height) || (town.height as number) < 4) throw new Error("Town has a bad height");
+  if (town.version === FORMAT_VERSION) {
+    checkRecord(
+      town.run,
+      { seed: "string", initial_population: "number", width: "number", height: "number" },
+      "run",
+    );
+    const run = town.run as { seed: string; initial_population: number; width: number; height: number };
+    const seed = run.seed;
+    if (!/^(0|[1-9][0-9]*)$/.test(seed) || seed.length > 20 || (seed.length === 20 && seed > "18446744073709551615")) {
+      throw new Error("run.seed should be an unsigned 64-bit decimal string");
+    }
+    if (!Number.isSafeInteger(run.initial_population) || run.initial_population < 1) {
+      throw new Error("run.initial_population should be a positive safe integer");
+    }
+    if (run.width !== town.width || run.height !== town.height) {
+      throw new Error("run dimensions do not match the town");
+    }
+  }
+  if (typeof town.stats !== "object" || town.stats === null || Array.isArray(town.stats)) {
+    throw new Error("stats should be an object");
+  }
+  const stats = town.stats as Record<string, unknown>;
+  if (Object.values(stats).some((value) => !matches(value, "number"))) {
+    throw new Error("stats should contain only finite numbers");
+  }
+  checkRecord(
+    stats,
+    { alive: "number", children: "number", couples: "number", max_generation: "number", gini: "number", employed: "number", homeless: "number" },
+    "stats",
+  );
+  for (const key of ["alive", "children", "couples", "max_generation", "employed", "homeless"]) {
+    if (!Number.isSafeInteger(stats[key]) || (stats[key] as number) < 0) {
+      throw new Error(`stats.${key} should be a non-negative integer`);
+    }
+  }
+  if ((stats.gini as number) < 0 || (stats.gini as number) > 1) throw new Error("stats.gini should be between 0 and 1");
+  checkRecord(
+    town.justice,
+    { crimes: "number", convictions: "number", acquittals: "number", jailed: "number", treasury: "number" },
+    "justice",
+  );
   checkList(town.people, PERSON_FIELDS, "people");
   checkList(town.districts, DISTRICT_FIELDS, "districts");
   checkList(town.conversations, CONVERSATION_FIELDS, "conversations");
   if (!Array.isArray(town.history)) throw new Error("history should be a list");
+  town.history.forEach((point, index) => {
+    checkRecord(
+      point,
+      {
+        tick: "number",
+        alive: "number",
+        children: "number",
+        couples: "number",
+        gini: "number",
+        employed: "number",
+        homeless: "number",
+        vacant: "number",
+        mean_money: "number",
+        mean_rent: "number",
+        crimes: "number",
+        convictions: "number",
+        treasury: "number",
+      },
+      `history[${index}]`,
+    );
+    const stock = (point as Record<string, unknown>).food_stock;
+    if (town.version === FORMAT_VERSION && stock === undefined) {
+      throw new Error(`history[${index}].food_stock is missing`);
+    }
+    if (stock !== undefined && (!Number.isSafeInteger(stock) || (stock as number) < 0)) {
+      throw new Error(`history[${index}].food_stock should be a non-negative integer`);
+    }
+  });
+  const foodStock = stats.food_stock;
+  if (town.version === FORMAT_VERSION && foodStock === undefined) {
+    throw new Error("stats.food_stock is missing");
+  }
+  if (foodStock !== undefined && (!Number.isSafeInteger(foodStock) || (foodStock as number) < 0)) {
+    throw new Error("stats.food_stock should be a non-negative integer");
+  }
   const people = town.people as Array<Record<string, unknown>>;
   const count = people.length;
   people.forEach((person, index) => {

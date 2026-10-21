@@ -23,6 +23,17 @@ describe("the viewer", () => {
     expect(root.querySelectorAll(".dot")).toHaveLength(5);
     const gini = [...root.querySelectorAll(".summary div")].find((d) => d.querySelector("dt")?.textContent === "Inequality (Gini)");
     expect(gini?.querySelector("dd")?.textContent).toBe("0.61");
+    const seed = [...root.querySelectorAll(".summary div")].find((d) => d.querySelector("dt")?.textContent === "Run seed");
+    expect(seed?.querySelector("dd")?.textContent).toBe("1");
+    const stock = [...root.querySelectorAll(".summary div")].find((d) => d.querySelector("dt")?.textContent === "Market food stock");
+    expect(stock?.querySelector("dd")?.textContent).toBe("28");
+  });
+
+  it("plots recorded food availability over time", () => {
+    mountTown(root, makeTown());
+    click('[data-tab="charts"]');
+    expect(root.querySelector("#content")?.textContent).toContain("Market food stock");
+    expect(root.querySelector('[aria-label^="Market food stock over time"]')).not.toBeNull();
   });
 
   it("opens a person from the map and shows their words and family", () => {

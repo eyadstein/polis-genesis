@@ -46,4 +46,27 @@ describe("replay", () => {
     expect(() => parseReplay({ version: 9 })).toThrow();
     expect(parseReplay(replay).frames).toHaveLength(3);
   });
+
+  it("rejects malformed frames before playback can interpolate them", () => {
+    const duplicateTicks = structuredClone(replay);
+    duplicateTicks.frames[1]!.tick = duplicateTicks.frames[0]!.tick;
+    expect(() => parseReplay(duplicateTicks)).toThrow("invalid or out-of-order tick");
+
+    const outsideMap = structuredClone(replay);
+    outsideMap.frames[0]!.p[0]![1] = outsideMap.width;
+    expect(() => parseReplay(outsideMap)).toThrow("person row 0 is invalid");
+
+    const duplicatePerson = structuredClone(replay);
+    duplicatePerson.frames[0]!.p[1]![0] = duplicatePerson.frames[0]!.p[0]![0]!;
+    expect(() => parseReplay(duplicatePerson)).toThrow("repeats person");
+  });
+
+  it("rejects malformed conversation rows and invalid frame intervals", () => {
+    const badTalk = structuredClone(replay);
+    badTalk.talk[0] = [12, 1, 2] as never;
+    expect(() => parseReplay(badTalk)).toThrow("conversation 0 is invalid");
+
+    const noInterval = { ...replay, every: 0 };
+    expect(() => parseReplay(noInterval)).toThrow("invalid frame interval");
+  });
 });

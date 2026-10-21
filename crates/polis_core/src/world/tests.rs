@@ -1,4 +1,38 @@
 use super::*;
+
+#[test]
+fn invalid_world_configurations_are_reported_before_allocation() {
+    let config = WorldConfig {
+        width: 3,
+        ..WorldConfig::default()
+    };
+    assert!(matches!(World::try_new(config), Err(error) if error.contains("at least 4")));
+
+    let config = WorldConfig {
+        population: 0,
+        ..WorldConfig::default()
+    };
+    assert!(matches!(World::try_new(config), Err(error) if error.contains("greater than zero")));
+
+    let config = WorldConfig {
+        width: i32::MAX,
+        height: i32::MAX,
+        ..WorldConfig::default()
+    };
+    assert!(World::try_new(config).is_err());
+}
+
+#[test]
+fn world_keeps_its_seed_and_initial_population_as_run_metadata() {
+    let config = WorldConfig {
+        seed: 42,
+        population: 12,
+        ..WorldConfig::default()
+    };
+    let world = World::try_new(config).expect("valid config");
+    assert_eq!(world.seed, 42);
+    assert_eq!(world.initial_population, 12);
+}
 use crate::genome::{Gene, Genome};
 use crate::rng::Rng;
 use std::collections::BTreeSet;

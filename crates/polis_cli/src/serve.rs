@@ -121,7 +121,7 @@ fn run_clock(engine: Arc<Mutex<Engine>>) {
 pub fn run(config: WorldConfig, port: u16) -> Result<(), String> {
     let server = tiny_http::Server::http(("127.0.0.1", port))
         .map_err(|e| format!("could not listen on port {port}: {e}"))?;
-    let engine = Arc::new(Mutex::new(Engine::new(config)));
+    let engine = Arc::new(Mutex::new(Engine::try_new(config)?));
     {
         let engine = Arc::clone(&engine);
         std::thread::spawn(move || run_clock(engine));

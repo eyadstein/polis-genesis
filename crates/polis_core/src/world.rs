@@ -27,6 +27,21 @@ pub struct WorldConfig {
     pub population: u32,
 }
 
+impl WorldConfig {
+    /// Reject configurations that cannot represent the town safely.
+    pub fn validate(&self) -> Result<usize, String> {
+        if self.width < 4 || self.height < 4 {
+            return Err("world width and height must each be at least 4".into());
+        }
+        if self.population == 0 {
+            return Err("world population must be greater than zero".into());
+        }
+        let cells = i64::from(self.width) * i64::from(self.height);
+        usize::try_from(cells)
+            .map_err(|_| "world dimensions exceed this platform's capacity".into())
+    }
+}
+
 impl Default for WorldConfig {
     fn default() -> Self {
         Self {
@@ -126,6 +141,8 @@ struct Estate {
 
 pub struct World {
     pub tick: u64,
+    pub seed: u64,
+    pub initial_population: u32,
     pub width: i32,
     pub height: i32,
     pub agents: Vec<Agent>,
@@ -155,11 +172,27 @@ const MOVE_OUT_SAVINGS: Coins = 60;
 
 impl World {
     pub fn new(config: WorldConfig) -> Self {
+        Self::try_new(config).unwrap_or_else(|error| panic!("invalid world configuration: {error}"))
+    }
+
+    /// Create a world after validating dimensions and making fallible allocations.
+    pub fn try_new(config: WorldConfig) -> Result<Self, String> {
+        let cells = config.validate()?;
         let mut rng = Rng::new(config.seed);
-        let cells = (config.width * config.height) as usize;
-        let food = (0..cells).map(|_| rng.next_f32()).collect();
+        let mut food = Vec::new();
+        food.try_reserve_exact(cells)
+            .map_err(|error| format!("could not allocate {cells} world cells: {error}"))?;
+        food.extend((0..cells).map(|_| rng.next_f32()));
         let mut names = NameBook::new();
-        let mut agents = Vec::with_capacity(config.population as usize);
+        let mut agents = Vec::new();
+        agents
+            .try_reserve_exact(config.population as usize)
+            .map_err(|error| {
+                format!(
+                    "could not allocate {} residents: {error}",
+                    config.population
+                )
+            })?;
         for id in 0..config.population {
             let genome = Genome::random(&mut rng);
             let name = names.fresh(&mut rng);
@@ -175,6 +208,8 @@ impl World {
         let economy = Economy::new(config.population as usize, &mut rng);
         let mut world = Self {
             tick: 0,
+            seed: config.seed,
+            initial_population: config.population,
             width: config.width,
             height: config.height,
             agents,
@@ -194,7 +229,7 @@ impl World {
             gossips: 0,
         };
         world.refresh_housing(&[]);
-        world
+        Ok(world)
     }
 
     fn cell(&self, pos: (i32, i32)) -> usize {

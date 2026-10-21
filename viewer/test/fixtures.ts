@@ -38,16 +38,17 @@ export function makeTown(): Town {
     person({ id: 5, name: "Fadi", alive: false, voice: null, money: 0 }),
   ];
   return {
-    version: 2,
+    version: 3,
+    run: { seed: "1", initial_population: 6, width: 64, height: 64 },
     tick: 8000,
     width: 64,
     height: 64,
-    stats: { alive: 5, children: 1, couples: 1, max_generation: 1, gini: 0.61, employed: 2, homeless: 3 },
+    stats: { alive: 5, children: 1, couples: 1, max_generation: 1, gini: 0.61, employed: 2, homeless: 3, food_stock: 28 },
     justice: { crimes: 3, convictions: 1, acquittals: 1, jailed: 1, treasury: 400 },
     history: [
-      { tick: 0, alive: 4, children: 0, couples: 0, gini: 0.1, employed: 0, homeless: 4, vacant: 2, mean_money: 100, mean_rent: 3, crimes: 0, convictions: 0, treasury: 300 },
-      { tick: 4000, alive: 5, children: 1, couples: 1, gini: 0.4, employed: 2, homeless: 3, vacant: 5, mean_money: 90, mean_rent: 4, crimes: 2, convictions: 1, treasury: 350 },
-      { tick: 8000, alive: 5, children: 1, couples: 1, gini: 0.61, employed: 2, homeless: 3, vacant: 8, mean_money: 80, mean_rent: 4, crimes: 3, convictions: 1, treasury: 400 },
+      { tick: 0, alive: 4, children: 0, couples: 0, gini: 0.1, employed: 0, homeless: 4, vacant: 2, mean_money: 100, mean_rent: 3, food_stock: 32, crimes: 0, convictions: 0, treasury: 300 },
+      { tick: 4000, alive: 5, children: 1, couples: 1, gini: 0.4, employed: 2, homeless: 3, vacant: 5, mean_money: 90, mean_rent: 4, food_stock: 30, crimes: 2, convictions: 1, treasury: 350 },
+      { tick: 8000, alive: 5, children: 1, couples: 1, gini: 0.61, employed: 2, homeless: 3, vacant: 8, mean_money: 80, mean_rent: 4, food_stock: 28, crimes: 3, convictions: 1, treasury: 400 },
     ],
     districts: Array.from({ length: 16 }, (_, id) => ({ id, homes: id, appeal: id / 15, occupancy: 0.5, neighbor_wealth: 0.4, mean_rent: 2 + id / 4 })),
     people,
