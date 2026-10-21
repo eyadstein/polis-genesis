@@ -253,3 +253,30 @@ body {
   font-size: 0.9rem;
   color: #ffd98a;
 }
+
+.hud-about {
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  z-index: 50;
+  border-color: #ffd98a;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+.hud-about h2 {
+  margin: 0 0 10px;
+  color: #ffd98a;
+  font-size: 1.4rem;
+}
+.hud-about p {
+  margin: 0 0 10px;
+  line-height: 1.5;
+  color: #d8dded;
+  font-size: 0.92rem;
+}
+.hud-about a {
+  color: #7fe1ff;
+  text-decoration: underline;
+}

@@ -1,0 +1,11 @@
+LICENSE
+README.md
+pyproject.toml
+python/polis_genesis/__init__.py
+python/polis_genesis/__main__.py
+python/polis_genesis/cli.py
+python/polis_genesis.egg-info/PKG-INFO
+python/polis_genesis.egg-info/SOURCES.txt
+python/polis_genesis.egg-info/dependency_links.txt
+python/polis_genesis.egg-info/entry_points.txt
+python/polis_genesis.egg-info/top_level.txt

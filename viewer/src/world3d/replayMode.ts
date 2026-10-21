@@ -18,7 +18,7 @@ async function fetchJson(url: string): Promise<unknown> {
 }
 
 export async function startReplay(root: HTMLElement): Promise<void> {
-  const [townRaw, replayRaw] = await Promise.all([fetchJson("/town.json"), fetchJson("/replay.json")]);
+  const [townRaw, replayRaw] = await Promise.all([fetchJson("./town.json"), fetchJson("./replay.json")]);
   const town = townRaw as Town;
   const player = new ReplayPlayer(parseReplay(replayRaw));
   const layout = buildLayout(town);

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+* Python package polis genesis for PyPI distribution
+* Interactive terminal console mode with ASCII city map and live telemetry
+* GitHub Pages deployment workflow for the 3D visualizer
+* About modal in the viewer explaining simulation mechanics and controls
+
 ## 0.2.0
 
 * Water system: river and lake outside the streets, fountains in the middle of every district

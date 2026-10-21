@@ -3,6 +3,7 @@
 //! Usage: polis_cli [seed] [ticks] [population] [export.json] [replay.json] [frame_every]
 //!        polis_cli serve [seed] [population] [port]    a town that never ends
 
+mod console;
 mod export;
 mod files;
 mod live;
@@ -75,8 +76,20 @@ fn serve() {
 }
 
 fn main() {
-    if std::env::args().nth(1).as_deref() == Some("serve") {
+    let mode = std::env::args().nth(1);
+    if mode.as_deref() == Some("serve") {
         serve();
+        return;
+    }
+    if mode.as_deref() == Some("console") {
+        let config = WorldConfig {
+            seed: arg(2, 1),
+            population: arg(3, 120) as u32,
+            ..WorldConfig::default()
+        };
+        let ticks = arg(4, 500);
+        let delay_ms = arg(5, 80);
+        console::run(config, ticks, delay_ms);
         return;
     }
     let config = WorldConfig {

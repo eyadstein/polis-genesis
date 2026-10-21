@@ -4,6 +4,7 @@ import { defineConfig } from "vitest/config";
 const page = (name: string): string => fileURLToPath(new URL(name, import.meta.url));
 
 export default defineConfig({
+  base: "./",
   build: {
     rollupOptions: {
       input: { main: page("index.html"), world: page("world.html") },

@@ -176,13 +176,34 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
     audioToggle.textContent = on ? "Audio: on" : "Audio: off";
   });
 
+  const about = el("div", "hud-panel hud-about");
+  about.hidden = true;
+  about.innerHTML = `
+    <h2>Polis Genesis</h2>
+    <p>A living autonomous society simulation where agents have genomes, neural policies, daily needs, moods, families, and economic lives.</p>
+    <div class="hud-section"><strong>Controls</strong></div>
+    <p>Left drag to orbit, right drag to pan, wheel to zoom. Click any person or house to inspect their life story and memories.</p>
+    <div class="hud-section"><strong>Atmosphere</strong></div>
+    <p>Districts feature central fountains, outer river and lake banks, dynamic lighting, and procedural soundscapes.</p>
+    <div class="hud-section"><strong>Links</strong></div>
+    <p><a href="https://github.com/eyadstein/polis-genesis" target="_blank">GitHub Repository</a> | <a href="https://pypi.org/project/polis-genesis" target="_blank">PyPI Package</a> | <a href="https://eyadstein.github.io/polis-genesis/world.html" target="_blank">Live Demo</a></p>
+    <div style="text-align:right;margin-top:14px;"><button class="hud-close" id="about-close">Close</button></div>
+  `;
+  about.querySelector("#about-close")?.addEventListener("click", () => {
+    about.hidden = true;
+  });
+
+  const aboutToggle = button("About", "Learn about Polis Genesis simulation and controls", () => {
+    about.hidden = !about.hidden;
+  });
+
   const controls = el("div", "hud-row");
   if (live) {
     controls.append(play, speed);
     for (const n of [1, 5, 20]) {
       controls.append(button(`Add ${n} ${n === 1 ? "person" : "people"}`, "Strangers arrive in town", () => live.addPeople(n)));
     }
-    controls.append(talkToggle, audioToggle);
+    controls.append(talkToggle, audioToggle, aboutToggle);
     bar.append(controls);
   } else {
     controls.append(
@@ -195,6 +216,7 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
       speed,
       talkToggle,
       audioToggle,
+      aboutToggle,
     );
     bar.append(scrub, controls);
   }
@@ -208,7 +230,7 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
   notice.hidden = true;
   notice.setAttribute("role", "alert");
 
-  root.append(clockBox, news, bar, feed, card, notice);
+  root.append(clockBox, news, bar, feed, card, notice, about);
 
   function refresh(): void {
     const running = live ? !live.status().paused : clock.playing;

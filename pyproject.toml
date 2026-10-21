@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "polis-genesis"
+version = "0.2.0"
+description = "A living autonomous multi agent society simulation with neural minds, realistic economics, and 3D visualizer"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{ name = "Eyad Stein" }]
+keywords = [
+    "simulation",
+    "multi-agent",
+    "artificial-life",
+    "society",
+    "neural-network",
+    "generative-agents",
+    "threejs",
+    "rust",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Games/Entertainment :: Simulation",
+]
+
+[project.scripts]
+polis-genesis = "polis_genesis.cli:main"
+polis = "polis_genesis.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/eyadstein/polis-genesis"
+Documentation = "https://eyadstein.github.io/polis-genesis/world.html"
+Repository = "https://github.com/eyadstein/polis-genesis"
+Issues = "https://github.com/eyadstein/polis-genesis/issues"
+
+[tool.setuptools.packages.find]
+where = ["python"]

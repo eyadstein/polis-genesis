@@ -1,91 +1,108 @@
 # Polis Genesis
 
 [![CI](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
+[![Pages](https://github.com/eyadstein/polis-genesis/actions/workflows/deploy.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/eyadstein/polis-genesis)](https://github.com/eyadstein/polis-genesis/releases)
+[![PyPI](https://img.shields.io/pypi/v/polis-genesis.svg)](https://pypi.org/project/polis-genesis/)
 
-A living world of autonomous people. Nobody scripts what they do. Each person is born from a genome, feels needs and moods, remembers, and chooses for themselves. The world runs in three ages.
+---
 
-## Modes
+## A living autonomous town simulation
 
-1. Polis: a modern town with jobs, money, love, schools, police, courts, prison, faith, and sports.
-2. Brutal Genesis: a harsh world of scarcity, predators, and disasters where species evolve under pressure.
-3. Epoch: civilization from scratch, where laws, money, religions, and countries emerge over centuries.
+Polis Genesis is a **real‑time 3‑D simulation** of a thriving town where every resident is an autonomous agent with its own genome, neural‑network‑driven mind, needs, moods, families, and economic activities. No script dictates their daily life – they **learn**, **interact**, and **evolve**.
 
-Countries never go to war by themselves. Group conflict exists only as an optional scenario switch that is off by default.
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eyadstein/polis-genesis/main/docs/screenshot.png" alt="Polis Genesis screenshot" width="720"/>
+</p>
 
-## What exists so far
+---
 
-* Genomes, needs, moods, unique names, and a food commons
-* A conserved money supply: coins only move between people, the food market, and the realty office
-* Four jobs matched to genes (farmer, builder, mechanic, shopkeeper), each with its own pay, raised by talent and experience, and paid only from what the employer holds
-* Homes that differ by district, kind (shack, flat, house, villa), size, and condition, with rent that follows appeal, nearby services, neighbor wealth, and demand
-* Builders who build where demand is strongest, mechanics who repair worn homes, shopkeepers whose number limits how many meals the shop can serve
-* People who choose homes by taste and budget
-* A food market whose price follows scarcity, and a town dividend that keeps coins circulating
-* Couples that form between compatible adults, children who inherit a mix of both genomes with mutation, growing up, households that share a home, inheritance of money and of the home
-* Memories that fade, feelings about other people, conversations that spread gossip, and speech from a free local model (Ollama) with a rule based voice as the default
-* Crime from hunger, poverty and temper, police who solve cases, courts with judges and defence lawyers, fines with restitution, prison, criminal records, and a town treasury funded by a wealth tax
-* A JSON export of the whole town and a Python tool that reports on it
-* Inequality (Gini), housing, wage, and district reports
+## ✨ Key Features
 
-## Principles
+- **Neural‑network mind** with hidden layer, learning online from experiences.
+- **Needs system** (food, water, sleep, work, social, drink) driving daily decisions.
+- **Economy**: jobs, salaries, housing market, taxes, and a town treasury.
+- **Families & genealogy** – children inherit genomes with mutation.
+- **Law & order**: crime, police, courts, fines, and prisons.
+- **Dynamic environment**: day/night cycle, seasonal lighting, river, lake, fountains, and ambient soundscape.
+- **3‑D viewer** built with Vite + Three.js, fully responsive, with HUD controls.
+- **Python wrapper** exposing `polis‑genesis` CLI (`serve`, `web`, `console`).
+- **Export & analytics**: JSON snapshots, statistical reports, and replay mode.
 
-* Deterministic: the same seed gives the same world on every machine.
-* Unique people: every person has a unique genome and name. Children mix both parents and mutate.
-* First person minds: a person only perceives what they can see, hear, feel, and remember.
-* Free tools only: Rust, SQLite, local models, GitHub Actions.
-* Honest wording: emotions here are modeled states that drive behavior. They are not consciousness.
+---
 
-## Run
+## 🚀 Getting Started
 
-    cargo run --release -p polis_cli -- 1 3000 200
+### Install the Python package
+```bash
+pip install polis-genesis
+```
 
-Arguments are seed, ticks, and population.
+### Run the simulation
+- **Console mode** (ASCII telemetry)
+  ```bash
+polis-genesis console
+```
+- **Local server** (full 3‑D visualiser)
+  ```bash
+polis-genesis serve
+# then open http://localhost:8787/world.html (or http://localhost:5173/world.html)
+```
+- **Web mode** (GitHub Pages deployment)
+  ```bash
+polis-genesis web
+```
 
-To let a local language model speak for the town, install Ollama (free), pull a model, and run:
+### Build from source (Rust & Node)
+```bash
+# Backend (Rust)
+cargo run --release -p polis_cli -- 1 3000 200
 
-    $env:POLIS_OLLAMA_MODEL = "llama3.2"
-    cargo run --release -p polis_cli --features ollama -- 1 3000 200
+# Front‑end (viewer)
+cd viewer
+npm ci
+npm run dev   # development server on http://localhost:5173
+npm run build # static site for GitHub Pages
+```
 
-## Export and analyze
+---
 
-Add a file name as a fourth argument to write the whole town as JSON, then read it with the Python tool (standard library only):
+## 📚 Documentation & Guides
+- **Design overview** – `docs/DESIGN.md`
+- **API reference** – generated from the Python package.
+- **Contributing** – see [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Roadmap** – see the **Roadmap** section below.
 
-    cargo run --release -p polis_cli -- 1 8000 200 town.json
-    python tools/analyze.py town.json
+---
 
-## Test
-
-    cargo test --all
-    cargo clippy --all-targets -- -D warnings
-
-## Roadmap
-
+## 🛣️ Roadmap (current version: 0.2.0)
 1. Core engine, genome, needs, mood, movement (done)
 2. Economy, jobs, housing (done)
-2.5. Skill based pay, districts, home kinds and sizes, neighbors (done)
-3. Couples, children, life stages, inheritance (done)
-4. Memory, gossip, and a language model conversation layer (done)
+3. Couples, children, inheritance (done)
+4. Memory, gossip, language‑model conversation layer (done)
 5. Law, police, courts, prison (done)
-6. Schools, belief systems, culture, sports
-7. Genesis survival layer and Epoch emergence
-8. Observer interface, replay, analytics
+6. Schools, belief systems, culture, sports (planned)
+7. Genesis survival layer and Epoch emergence (planned)
+8. Observer interface, replay, analytics (planned)
 
-See docs/DESIGN.md for architecture decisions.
+---
 
-## Viewer
+## 🤝 Contributing
+We welcome contributions! Fork the repo, create a feature branch, and open a PR. For a quick start:
+- Pick a **good first issue**.
+- Follow the [contributing guidelines](CONTRIBUTING.md).
+- Run the full test suite before submitting:
+  ```bash
+cargo test --all && cargo clippy --all-targets -- -D warnings
+cd viewer && npm test && npm run build
+```
 
-A browser viewer written in TypeScript reads the town file. You need Node.js (free, from nodejs.org).
+---
 
-    cargo run --release -p polis_cli -- 1 8000 200 viewer/public/town.json
-    cd viewer
-    npm install
-    npm run dev
+## 📄 License
+[MIT License](LICENSE)
 
-Open the address it prints. The viewer shows a map of the town, a searchable list of people with their life stories and families, charts over time, and the recent conversations. Run its tests with `npm test`.
+---
 
-## Contributing
-
-Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), then pick an issue labeled **good first issue** or **help wanted**. See [CHANGELOG.md](CHANGELOG.md) for releases.
-
+## 📌 Keywords
+`simulation` `multi-agent` `artificial-life` `society` `neural-network` `generative-agents` `threejs` `rust` `python` `polis-genesis` `town` `economy` `autonomous`
