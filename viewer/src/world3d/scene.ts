@@ -8,6 +8,7 @@ import type { Person, Town } from "../types";
 import { daylight, sunAngle } from "./clock";
 import { hash01, pushOut, type Building, type Layout } from "./layout";
 import type { Sample } from "./replay";
+import { CHILD_FACTOR, FLOOR_HEIGHT, LAMP_HEIGHT, PERSON_SCALE } from "./scale";
 
 const ACTION_COLORS = ["#d0873f", "#7a6ac4", "#d05a8c", "#3f7cd0", "#4fa070"];
 const JAILED_COLOR = "#d9822b";
@@ -106,12 +107,12 @@ export class WorldScene {
     host.appendChild(this.renderer.domElement);
 
     this.camera = new THREE.PerspectiveCamera(50, 1, 0.1, 600);
-    this.camera.position.set(this.center.x + 48, 46, this.center.z + 58);
+    this.camera.position.set(this.center.x + 30, 26, this.center.z + 36);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.target.copy(this.center);
     this.controls.enableDamping = true;
     this.controls.maxPolarAngle = Math.PI / 2.05;
-    this.controls.minDistance = 3;
+    this.controls.minDistance = 0.8;
     this.controls.maxDistance = 170;
 
     this.scene.background = new THREE.Color(SKY_DAY);
@@ -150,7 +151,7 @@ export class WorldScene {
     this.outline.visible = false;
     this.scene.add(this.outline);
     this.ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.35, 0.45, 32).rotateX(-Math.PI / 2),
+      new THREE.RingGeometry(0.22, 0.28, 32).rotateX(-Math.PI / 2),
       new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.9, toneMapped: false }),
     );
     this.ring.visible = false;
@@ -288,7 +289,7 @@ export class WorldScene {
       const wall = new THREE.Color(KIND_WALL[h.kind] ?? "#e0cfae");
       wall.offsetHSL((hash01(i, 77) - 0.5) * 0.04, 0, (hash01(i, 78) - 0.5) * 0.08);
       paint(bodies, n, wall);
-      const roofH = h.kind === "Flat" ? 0.14 : 0.8;
+      const roofH = h.kind === "Flat" ? 0.05 : 0.3;
       place(roofs, n, h.x, h.h + roofH / 2, h.z, h.w * 1.12, roofH, h.d * 1.12);
       paint(roofs, n, h.kind === "Flat" ? "#555a63" : new THREE.Color().setHSL(0.03 + hash01(i, 5) * 0.06, 0.45, 0.32));
       n++;
@@ -297,7 +298,7 @@ export class WorldScene {
       this.buildingList.push({ type: "work", ...w });
       place(bodies, n, w.x, w.h / 2, w.z, w.w, w.h, w.d);
       paint(bodies, n, w.color);
-      place(roofs, n, w.x, w.h + 0.09, w.z, w.w * 1.06, 0.18, w.d * 1.06);
+      place(roofs, n, w.x, w.h + 0.035, w.z, w.w * 1.06, 0.07, w.d * 1.06);
       paint(roofs, n, "#3a3d44");
       n++;
     });
@@ -314,15 +315,16 @@ export class WorldScene {
       const lived = h.occupants.length > 0;
       const base = lived ? hash01(hi, 400) * 0.55 : 2;
       for (let f = 0; f < h.floors; f++) {
-        const y = 0.45 + f * 1.05;
-        if (y > h.h - 0.2) continue;
+        const floorH = FLOOR_HEIGHT[h.kind];
+        const y = floorH * (f + 0.55);
+        if (y > h.h - 0.1) continue;
         for (const dx of [-0.25, 0.25]) {
           spots.push({ x: h.x + dx * h.w, y, z: h.z + h.d / 2 + 0.01, rot: 0, thr: lived ? Math.min(0.95, base + hash01(hi * 9 + f, 11 + dx * 10) * 0.4) : 2 });
           spots.push({ x: h.x + h.w / 2 + 0.01, y, z: h.z + dx * h.d, rot: Math.PI / 2, thr: lived ? Math.min(0.95, base + hash01(hi * 9 + f, 21 + dx * 10) * 0.4) : 2 });
         }
       }
     });
-    const mesh = instanced(new THREE.PlaneGeometry(0.34, 0.4), new THREE.MeshBasicMaterial({ toneMapped: false }), spots.length);
+    const mesh = instanced(new THREE.PlaneGeometry(0.24, 0.28), new THREE.MeshBasicMaterial({ toneMapped: false }), spots.length);
     spots.forEach((s, i) => {
       place(mesh, i, s.x, s.y, s.z, 1, 1, 1, s.rot);
       this.windowThreshold.push(s.thr);
@@ -349,13 +351,13 @@ export class WorldScene {
 
   private buildLamps(): { bulbs: Instanced; glow: THREE.MeshBasicMaterial } {
     const { lamps } = this.layout;
-    const poles = instanced(new THREE.CylinderGeometry(0.04, 0.05, 2.4, 6), new THREE.MeshStandardMaterial({ color: "#2c2f36" }), lamps.length);
-    const bulbs = instanced(new THREE.SphereGeometry(0.12, 10, 8), new THREE.MeshBasicMaterial({ toneMapped: false }), lamps.length);
+    const poles = instanced(new THREE.CylinderGeometry(0.025, 0.03, LAMP_HEIGHT, 6), new THREE.MeshStandardMaterial({ color: "#2c2f36" }), lamps.length);
+    const bulbs = instanced(new THREE.SphereGeometry(0.07, 10, 8), new THREE.MeshBasicMaterial({ toneMapped: false }), lamps.length);
     const glow = new THREE.MeshBasicMaterial({ color: "#ffcf80", transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false });
-    const pools = instanced(new THREE.CircleGeometry(2.6, 24).rotateX(-Math.PI / 2), glow, lamps.length);
+    const pools = instanced(new THREE.CircleGeometry(1.8, 24).rotateX(-Math.PI / 2), glow, lamps.length);
     lamps.forEach((l, i) => {
-      place(poles, i, l.x, 1.2, l.z);
-      place(bulbs, i, l.x, 2.45, l.z);
+      place(poles, i, l.x, LAMP_HEIGHT / 2, l.z);
+      place(bulbs, i, l.x, LAMP_HEIGHT + 0.04, l.z);
       paint(bulbs, i, "#555555");
       place(pools, i, l.x, 0.04, l.z);
     });
@@ -393,7 +395,9 @@ export class WorldScene {
       const r = el.getBoundingClientRect();
       const ndc = new THREE.Vector2(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
       ray.setFromCamera(ndc, this.camera);
-      const people = [...ray.intersectObject(this.bodies), ...ray.intersectObject(this.heads)].sort((a, b) => a.distance - b.distance)[0];
+      const hit = [...ray.intersectObject(this.bodies), ...ray.intersectObject(this.heads)].sort((a, b) => a.distance - b.distance)[0];
+      // People are small next to buildings, so a click near one counts as a click on them.
+      const people = hit ?? this.nearestPerson(e.clientX - r.left, e.clientY - r.top, r.width, r.height);
       const building = ray.intersectObject(this.buildingMesh)[0];
       if (people && (!building || people.distance <= building.distance)) {
         const i = people.instanceId;
@@ -444,15 +448,15 @@ export class WorldScene {
     this.workLabels = new THREE.Group();
     this.districtLabels = new THREE.Group();
     for (const w of this.layout.workplaces) {
-      const sign = this.sign(w.title, 5, "#ffe9b0");
+      const sign = this.sign(w.title, 3, "#ffe9b0");
       if (!sign) continue;
-      sign.position.set(w.x, w.h + 1.6, w.z);
+      sign.position.set(w.x, w.h + 0.5, w.z);
       this.workLabels.add(sign);
     }
     for (const d of this.layout.districts) {
       const sign = this.sign(d.name, 11, "#ffffff");
       if (!sign) continue;
-      sign.position.set(d.x + d.size / 2, 7, d.z + d.size / 2);
+      sign.position.set(d.x + d.size / 2, 4, d.z + d.size / 2);
       this.districtLabels.add(sign);
     }
     this.places.add(this.workLabels, this.districtLabels);
@@ -494,6 +498,27 @@ export class WorldScene {
 
   get selectedId(): number | null {
     return this.selected;
+  }
+
+  /** The person drawn closest to a screen point, if one is within a few pixels. */
+  private nearestPerson(px: number, py: number, width: number, height: number): { instanceId: number; distance: number } | undefined {
+    let best: { instanceId: number; distance: number } | undefined;
+    let bestGap = 18;
+    const point = new THREE.Vector3();
+    for (let i = 0; i < this.ids.length; i++) {
+      const pose = this.poses[i];
+      if (!pose || this.lastAction[i] === -1) continue;
+      point.set(pose.x, pose.height, pose.z);
+      const distance = this.camera.position.distanceTo(point);
+      point.project(this.camera);
+      if (point.z > 1) continue;
+      const gap = Math.hypot(((point.x + 1) / 2) * width - px, ((1 - point.y) / 2) * height - py);
+      if (gap < bestGap) {
+        bestGap = gap;
+        best = { instanceId: i, distance };
+      }
+    }
+    return best;
   }
 
   /** Where a person stands right now, for the camera and later for seeing through their eyes. */
@@ -561,7 +586,7 @@ export class WorldScene {
       pose.x = spot.x;
       pose.z = spot.z;
       const adult = years(Math.max(0, tick - (this.birthTicks[i] ?? 0))) >= ADULT_YEARS;
-      const scale = (adult ? 1 : 0.7) * (this.statures[i] ?? 1);
+      const scale = (adult ? 1 : CHILD_FACTOR) * (this.statures[i] ?? 1) * PERSON_SCALE;
       pose.height = 1.7 * scale * 0.5;
       const bob = Math.abs(Math.sin(this.time * 7 + i)) * (s.action === 1 ? 0 : 0.03);
       tmp.compose(new THREE.Vector3(spot.x, 0.41 * scale + bob, spot.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.heading), new THREE.Vector3(scale, scale, scale));
@@ -572,7 +597,7 @@ export class WorldScene {
       const cap = HAIR_HEIGHT[this.hairStyles[i] ?? 0] ?? 1;
       tmp.compose(new THREE.Vector3(spot.x, headY + 0.02 * scale, spot.z), new THREE.Quaternion(), new THREE.Vector3(scale, Math.max(0.001, cap * scale), scale));
       this.hair.setMatrixAt(i, tmp);
-      tmp.compose(new THREE.Vector3(spot.x, headY + 0.34 * scale, spot.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.time * 2), new THREE.Vector3(1, 1, 1));
+      tmp.compose(new THREE.Vector3(spot.x, headY + 0.34 * scale, spot.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.time * 2), new THREE.Vector3(0.6, 0.6, 0.6));
       this.badges.setMatrixAt(i, tmp);
       const code = s.jailed ? -2 : s.action;
       if (this.lastAction[i] !== code) {

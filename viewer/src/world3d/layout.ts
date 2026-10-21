@@ -1,6 +1,7 @@
 /** Turns a town into places: districts, house plots, workplaces, parks and lamps. */
 
 import type { Person, Town } from "../types";
+import { FLOORS, FLOOR_HEIGHT } from "./scale";
 
 export const DISTRICTS_PER_SIDE = 4;
 const SLOTS_PER_SIDE = 4;
@@ -69,13 +70,13 @@ export interface Layout {
 }
 
 export const JOB_STYLE: Record<string, { color: string; h: number; w: number }> = {
-  Farmer: { color: "#c9a24a", h: 1.3, w: 3.4 },
-  Builder: { color: "#d98c3a", h: 1.7, w: 3 },
-  Mechanic: { color: "#4a7fb5", h: 1.6, w: 3.2 },
-  Shopkeeper: { color: "#c25a7a", h: 1.9, w: 3 },
-  Officer: { color: "#3a4c8a", h: 2.2, w: 3 },
-  Judge: { color: "#d8d4c4", h: 2.8, w: 3.4 },
-  Lawyer: { color: "#6a5a8a", h: 2.4, w: 2.8 },
+  Farmer: { color: "#c9a24a", h: 0.9, w: 3.4 },
+  Builder: { color: "#d98c3a", h: 1.0, w: 3 },
+  Mechanic: { color: "#4a7fb5", h: 0.9, w: 3.2 },
+  Shopkeeper: { color: "#c25a7a", h: 1.1, w: 3 },
+  Officer: { color: "#3a4c8a", h: 1.5, w: 3 },
+  Judge: { color: "#d8d4c4", h: 2.0, w: 3.4 },
+  Lawyer: { color: "#6a5a8a", h: 1.6, w: 2.8 },
 };
 
 const JOB_ORDER = Object.keys(JOB_STYLE);
@@ -98,10 +99,10 @@ export const DISTRICT_NAMES = [
 ];
 
 const KIND_SHAPE: Record<Kind, { w: number; h: number; floors: number }> = {
-  Shack: { w: 1.9, h: 1.0, floors: 1 },
-  House: { w: 2.5, h: 1.5, floors: 1 },
-  Villa: { w: 3.1, h: 2.1, floors: 2 },
-  Flat: { w: 3, h: 3.3, floors: 3 },
+  Shack: { w: 1.9, h: FLOOR_HEIGHT.Shack * FLOORS.Shack, floors: FLOORS.Shack },
+  House: { w: 2.5, h: FLOOR_HEIGHT.House * FLOORS.House, floors: FLOORS.House },
+  Villa: { w: 3.1, h: FLOOR_HEIGHT.Villa * FLOORS.Villa, floors: FLOORS.Villa },
+  Flat: { w: 3, h: FLOOR_HEIGHT.Flat * FLOORS.Flat, floors: FLOORS.Flat },
 };
 
 export function hash01(a: number, b: number): number {
@@ -200,7 +201,7 @@ export function buildLayout(town: Town): Layout {
         trees.push({
           x: spot.x + (hash01(d * 31 + i, t + 1) - 0.5) * slot * 0.7,
           z: spot.z + (hash01(d * 31 + i, t + 9) - 0.5) * slot * 0.7,
-          s: 0.8 + hash01(d + i, t + 20) * 0.6,
+          s: 0.85 + hash01(d + i, t + 20) * 0.3,
         });
       }
     });
