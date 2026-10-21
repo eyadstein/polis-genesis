@@ -1,194 +1,136 @@
 # Polis Genesis
 
-> **An autonomous town simulation where artificial life meets a living
-> 3D world.**
+**An autonomous town simulation where artificial life meets a living 3D world.**
 
-[![ENTER THE WORLD --- Launch Live
-Demo](https://img.shields.io/badge/ENTER_THE_WORLD-Launch_Live_Demo-2ea44f?style=for-the-badge)](https://eyadstein.github.io/polis-genesis/)
+[![Open the live demo](https://img.shields.io/badge/Live_demo-Explore_the_town-168a55?style=for-the-badge)](https://eyadstein.github.io/polis-genesis/)
 
-[![CI](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
-[![GitHub
-Pages](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml)
-[![MIT
-License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/polis-genesis.svg)](https://pypi.org/project/polis-genesis/)
-
-**[🌐 Open the live simulation
-→](https://eyadstein.github.io/polis-genesis/)**
-
-------------------------------------------------------------------------
+[![CI](https://img.shields.io/github/actions/workflow/status/eyadstein/polis-genesis/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
+[![Pages deployment](https://img.shields.io/github/actions/workflow/status/eyadstein/polis-genesis/pages.yml?branch=main&label=Pages&logo=githubpages&logoColor=white&style=flat-square)](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml)
+[![Latest release](https://img.shields.io/github/v/release/eyadstein/polis-genesis?display_name=tag&sort=semver&style=flat-square&color=2f6fbb)](https://github.com/eyadstein/polis-genesis/releases)
+[![PyPI version](https://img.shields.io/pypi/v/polis-genesis?style=flat-square&color=7b4ab5)](https://pypi.org/project/polis-genesis/)
+[![MIT License](https://img.shields.io/badge/license-MIT-3b82a0?style=flat-square)](LICENSE)
 
 ## Overview
 
-**Polis Genesis** is a real-time, 3D town simulation built around
-autonomous agents. Each resident has its own genome, needs, moods,
-memories, relationships, and a neural-network-driven mind.
+Polis Genesis models a town of autonomous residents. Each person has a genome, needs, mood, memories, relationships, and a mind that chooses actions. Residents work, trade, find homes, form families, talk, and respond to crime and the changing environment as the town evolves.
 
-Residents make decisions, work, interact, form families, and participate
-in an evolving virtual society. Rather than relying entirely on scripted
-events, the simulation brings together individual behavior and
-interconnected systems to explore how a virtual society develops.
-
-Try the hosted viewer without installing anything:
-
-**[Enter Polis Genesis](https://eyadstein.github.io/polis-genesis/)**
+The Rust engine keeps simulation state and seeded behavior reproducible. A Python command-line package runs the tools, while a browser viewer renders exported worlds and replays in 3D. A local HTTP server can also drive the viewer with a live simulation.
 
 ## Features
 
--   **Autonomous agents** --- neural-network-driven behavior that learns
-    from experience.
--   **Needs and daily life** --- food, water, sleep, work, social
-    interaction, and other needs shape decisions.
--   **Economy** --- jobs, salaries, housing, taxes, and a shared town
-    treasury.
--   **Families and genealogy** --- relationships, children, genetic
-    inheritance, and mutation.
--   **Law and order** --- crime, police, courts, fines, and prisons.
--   **Dynamic environment** --- day/night transitions, seasonal
-    lighting, waterways, fountains, and ambient sound.
--   **Interactive 3D viewer** --- a browser-based world built with
-    Three.js and Vite.
--   **Python CLI** --- console, server, and web commands for interacting
-    with the simulation.
--   **Snapshots and analytics** --- JSON exports, statistical reports,
-    and replay functionality.
+- **People and behavior:** genomes, needs, moods, movement, memory, relationships, conversation, and family life.
+- **Town systems:** jobs, wages, markets, housing, taxes, law enforcement, courts, and a shared treasury.
+- **World simulation:** seeded runs, reports, JSON snapshots, and recorded replays.
+- **3D viewer:** districts, residents, homes, time controls, news, and replay playback, built with Three.js and Vite.
+- **Optional local speech:** the `ollama` feature can use a local Ollama model; rule-based speech remains the default and fallback.
+- **Python analysis:** a standard-library report script reads exported town JSON.
 
-## Getting Started
+## Architecture
 
-### Try it online
+```mermaid
+flowchart LR
+    User[User] --> Py[Python package and CLI]
+    User --> Bin[Rust CLI]
+    Py --> Bin
+    Bin --> Core[polis_core: world, people, economy and justice]
+    Core --> Mind[polis_mind: rule-based or optional Ollama speech]
+    Bin -->|snapshot and replay JSON| Viewer[TypeScript viewer]
+    Bin -->|local HTTP town API| Viewer
+    Viewer -->|Vite development server| Browser[Web browser, Three.js]
+    Snapshot[Exported town JSON] --> Analysis[Python analysis tool]
+```
 
-Open the live demo:
-
-**https://eyadstein.github.io/polis-genesis/**
+## Getting started
 
 ### Install the Python package
 
-``` bash
-pip install polis-genesis
+Requires Python 3.9 or newer. Install the published package with:
+
+```bash
+python -m pip install polis-genesis
 ```
 
-### Run the simulation
+The package provides `polis-genesis` and `polis` commands. For example, start the interactive console with the default seed, population, and duration:
 
-Start the console interface:
-
-``` bash
+```bash
 polis-genesis console
 ```
 
-Start the local server:
+Set the seed, population, number of ticks, or console delay with options:
 
-``` bash
-polis-genesis serve
+```bash
+polis-genesis console --seed 7 --population 120 --ticks 500 --delay 80
 ```
 
-Open the local viewer address printed by the server. Depending on the
-configuration, it may be available at
-`http://localhost:8787/world.html`.
+Start a local town API server (default port `8787`):
 
-Launch web mode:
-
-``` bash
-polis-genesis web
+```bash
+polis-genesis serve --seed 1 --population 200 --port 8787
 ```
 
-## Build from Source
+Open the hosted viewer from the command line with `polis-genesis web`.
 
-### Prerequisites
+### Run from source
 
--   Rust and Cargo
--   Node.js and npm
--   Python for Python tooling
+Install stable Rust and Cargo, Python 3.9 or newer, and Node.js with npm. From the repository root, run a simulation and print its report:
 
-### Run the simulation
-
-From the repository root:
-
-``` bash
+```bash
 cargo run --release -p polis_cli -- 1 3000 200
 ```
 
-### Start the 3D viewer
+The positional arguments are seed, ticks, and population. To write a snapshot and replay as well:
 
-``` bash
+```bash
+cargo run --release -p polis_cli -- 1 3000 200 town.json replay.json 10
+```
+
+Analyze the exported snapshot with the Python standard library:
+
+```bash
+python tools/analyze.py town.json
+```
+
+### Run the live 3D viewer locally
+
+In one terminal at the repository root, start the simulation server:
+
+```bash
+cargo run --release -p polis_cli -- serve 1 200 8787
+```
+
+In a second terminal, install viewer dependencies and start Vite:
+
+```bash
 cd viewer
 npm ci
 npm run dev
 ```
 
-Vite prints the local development URL in the terminal.
+Open the Vite URL printed in the terminal and navigate to `world.html`. The development server forwards `/api` requests to the town server on `127.0.0.1:8787`. On Windows, `./run.ps1` starts both processes and opens the viewer.
 
-### Build the production viewer
+Build the static viewer from the `viewer` directory with:
 
-From the `viewer` directory:
-
-``` bash
+```bash
 npm run build
 ```
 
-The generated static site is written to `viewer/dist`. GitHub Actions
-builds and deploys the viewer to GitHub Pages.
+The output is written to `viewer/dist`. GitHub Actions builds the site and publishes it to Pages.
 
-## Technology Stack
+## Releases and project status
 
-  Component                Technology
-  ------------------------ ----------------
-  Simulation engine        Rust
-  3D rendering             Three.js
-  Front-end tooling        Vite
-  Python interface         Python
-  Continuous integration   GitHub Actions
-  Demo hosting             GitHub Pages
-
-## Roadmap
-
--   [x] Core engine, genomes, needs, moods, and movement
--   [x] Economy, jobs, and housing
--   [x] Relationships, children, and inheritance
--   [x] Memory and social interaction
--   [x] Law enforcement and justice systems
--   [ ] Schools, belief systems, culture, and sports
--   [ ] Expanded survival mechanics and emergent epochs
--   [ ] Enhanced observation, replay, and analytics
+The latest tagged GitHub release is **v0.2.0**. The Python package metadata also currently declares version **0.2.0**. See the [changelog](CHANGELOG.md) for project changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets. GitHub Actions runs Rust, Python, and viewer checks and builds the Pages site.
 
 ## Documentation
 
--   [Design overview](docs/DESIGN.md)
--   [Contributing guidelines](CONTRIBUTING.md)
--   [Changelog](CHANGELOG.md)
--   [License](LICENSE)
+- [Design notes](docs/DESIGN.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [MIT License](LICENSE)
 
 ## Contributing
 
-Contributions, bug reports, and ideas are welcome.
-
-1.  Fork the repository.
-2.  Create a branch for your changes.
-3.  Implement your changes and add tests where appropriate.
-4.  Run the relevant checks.
-5.  Submit a pull request describing your changes.
-
-Run the Rust checks:
-
-``` bash
-cargo test --workspace --all-features --locked
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-```
-
-For viewer changes:
-
-``` bash
-cd viewer
-npm ci
-npm test
-npm run build
-```
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, project rules, and checks used by CI.
 
 ## License
 
-Distributed under the [MIT License](LICENSE).
-
-------------------------------------------------------------------------
-
-**Explore the world. Observe the agents. Watch the town evolve.**
-
-**[ENTER POLIS GENESIS →](https://eyadstein.github.io/polis-genesis/)**
+Polis Genesis is distributed under the [MIT License](LICENSE).
