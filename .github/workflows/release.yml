@@ -1,0 +1,54 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  binaries:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --release -p polis_cli
+      - name: Collect the binary
+        shell: bash
+        run: |
+          mkdir out
+          if [ "$RUNNER_OS" = "Windows" ]; then cp target/release/polis_cli.exe out/polis_cli-windows.exe; fi
+          if [ "$RUNNER_OS" = "Linux" ]; then cp target/release/polis_cli out/polis_cli-linux; fi
+          if [ "$RUNNER_OS" = "macOS" ]; then cp target/release/polis_cli out/polis_cli-macos; fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ runner.os }}
+          path: out/*
+  viewer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: viewer
+      - run: npm run build
+        working-directory: viewer
+      - run: cd viewer/dist && zip -r ../../viewer-dist.zip .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: viewer
+          path: viewer-dist.zip
+  publish:
+    needs: [binaries, viewer]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*/* --repo "$GITHUB_REPOSITORY" --title "Polis Genesis $GITHUB_REF_NAME" --generate-notes

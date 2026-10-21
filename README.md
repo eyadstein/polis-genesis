@@ -1,5 +1,9 @@
 # Polis Genesis
 
+[![CI](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml/badge.svg)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/eyadstein/polis-genesis)](https://github.com/eyadstein/polis-genesis/releases)
+
 A living world of autonomous people. Nobody scripts what they do. Each person is born from a genome, feels needs and moods, remembers, and chooses for themselves. The world runs in three ages.
 
 ## Modes
@@ -80,3 +84,8 @@ A browser viewer written in TypeScript reads the town file. You need Node.js (fr
     npm run dev
 
 Open the address it prints. The viewer shows a map of the town, a searchable list of people with their life stories and families, charts over time, and the recent conversations. Run its tests with `npm test`.
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), then pick an issue labeled **good first issue** or **help wanted**. See [CHANGELOG.md](CHANGELOG.md) for releases.
+
