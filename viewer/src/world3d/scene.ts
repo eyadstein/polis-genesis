@@ -10,7 +10,7 @@ import { hash01, pushOut, type Building, type Layout } from "./layout";
 import type { Sample } from "./replay";
 import { CHILD_FACTOR, FLOOR_HEIGHT, LAMP_HEIGHT, PERSON_SCALE } from "./scale";
 
-const ACTION_COLORS = ["#d0873f", "#7a6ac4", "#d05a8c", "#3f7cd0", "#4fa070"];
+const ACTION_COLORS = ["#d0873f", "#7a6ac4", "#d05a8c", "#3f7cd0", "#4fa070", "#26a8d8"];
 const JAILED_COLOR = "#d9822b";
 const HAIR_HEIGHT = [0.7, 1.3, 0.5, 1, 0];
 const KIND_WALL: Record<string, string> = { Shack: "#a98c6a", House: "#e0cfae", Villa: "#f0e6d0", Flat: "#b9bcc4" };
@@ -89,6 +89,7 @@ export class WorldScene {
   private readonly poses: Pose[] = [];
   private readonly birthTicks: number[] = [];
   private readonly hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+  private fountainJets: THREE.InstancedMesh | null = null;
   private lastNight = -1;
   private selected: number | null = null;
   private time = 0;
@@ -274,6 +275,67 @@ export class WorldScene {
     });
     lots.receiveShadow = true;
     this.places.add(lots);
+
+    const waterMaterial = new THREE.MeshStandardMaterial({
+      color: "#2389ba",
+      roughness: 0.1,
+      metalness: 0.1,
+      transparent: true,
+      opacity: 0.88,
+    });
+    const river = new THREE.Mesh(
+      new THREE.PlaneGeometry(14, depth + 200).rotateX(-Math.PI / 2),
+      waterMaterial,
+    );
+    river.position.set(width + 16, 0.01, this.center.z);
+    river.receiveShadow = true;
+
+    const lake = new THREE.Mesh(
+      new THREE.CylinderGeometry(28, 28, 0.1, 32),
+      waterMaterial,
+    );
+    lake.position.set(width + 26, 0.02, -20);
+    lake.receiveShadow = true;
+
+    const bank = new THREE.Mesh(
+      new THREE.RingGeometry(28, 31, 32).rotateX(-Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: "#c2b280", roughness: 1 }),
+    );
+    bank.position.set(width + 26, 0.025, -20);
+    bank.receiveShadow = true;
+
+    this.places.add(river, lake, bank);
+
+    const fountains = this.layout.fountains ?? [];
+    if (fountains.length > 0) {
+      const stoneMat = new THREE.MeshStandardMaterial({ color: "#6e727c", roughness: 0.9 });
+      const fountainWaterMat = new THREE.MeshStandardMaterial({
+        color: "#2ab6e6",
+        roughness: 0.15,
+        transparent: true,
+        opacity: 0.9,
+      });
+      const plumeMat = new THREE.MeshBasicMaterial({
+        color: "#a5ecff",
+        transparent: true,
+        opacity: 0.8,
+        toneMapped: false,
+      });
+
+      const basins = instanced(new THREE.CylinderGeometry(1.2, 1.25, 0.35, 16), stoneMat, fountains.length);
+      const pools = instanced(new THREE.CylinderGeometry(1.05, 1.05, 0.36, 16), fountainWaterMat, fountains.length);
+      const pillars = instanced(new THREE.CylinderGeometry(0.28, 0.32, 0.65, 12), stoneMat, fountains.length);
+      const jets = instanced(new THREE.ConeGeometry(0.22, 0.55, 8), plumeMat, fountains.length);
+
+      fountains.forEach((f, i) => {
+        place(basins, i, f.x, 0.175, f.z);
+        place(pools, i, f.x, 0.19, f.z);
+        place(pillars, i, f.x, 0.325, f.z);
+        place(jets, i, f.x, 0.75, f.z);
+      });
+      this.fountainJets = jets;
+      this.places.add(basins, pools, pillars, jets);
+    }
   }
 
   private buildBuildings(): void {
@@ -614,6 +676,21 @@ export class WorldScene {
       this.lastAction[i] = -1;
     }
     for (const m of [this.bodies, this.heads, this.hair, this.badges]) m.instanceMatrix.needsUpdate = true;
+
+    if (this.fountainJets) {
+      const pulse = 1 + Math.sin(this.time * 5) * 0.15;
+      const tmpF = new THREE.Matrix4();
+      const fountains = this.layout.fountains ?? [];
+      fountains.forEach((f, i) => {
+        tmpF.compose(
+          new THREE.Vector3(f.x, 0.65 + pulse * 0.1, f.z),
+          new THREE.Quaternion(),
+          new THREE.Vector3(1, pulse, 1),
+        );
+        this.fountainJets!.setMatrixAt(i, tmpF);
+      });
+      this.fountainJets.instanceMatrix.needsUpdate = true;
+    }
 
     if (this.selected !== null) {
       const pose = this.poseOf(this.selected);

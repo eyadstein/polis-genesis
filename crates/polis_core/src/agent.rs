@@ -21,6 +21,7 @@ pub enum Action {
     Socialize,
     Work,
     Wander,
+    Drink,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -35,6 +36,7 @@ pub struct Percept {
     pub people_nearby: u32,
     pub food_underfoot: bool,
     pub meal_affordable: bool,
+    pub water_nearby: bool,
     pub employed: bool,
     /// How worried they are about money, from 0 (comfortable) to 1 (broke).
     pub money_pressure: f32,
@@ -142,10 +144,15 @@ impl Agent {
             0.6
         };
         let company_pull = if percept.people_nearby > 0 { 1.0 } else { 0.5 };
+        let water_pull = if percept.water_nearby { 1.1 } else { 0.8 };
         let options = [
             (
                 Action::Eat,
                 urgency(self.needs.get(Need::Hunger)) * food_pull,
+            ),
+            (
+                Action::Drink,
+                urgency(self.needs.get(Need::Thirst)) * water_pull,
             ),
             (Action::Rest, urgency(self.needs.get(Need::Energy))),
             (

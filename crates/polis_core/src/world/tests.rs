@@ -58,7 +58,7 @@ fn needs_and_mood_stay_in_range() {
         world.step();
         for agent in &world.agents {
             let n = &agent.needs;
-            for level in [n.hunger, n.energy, n.social, n.purpose] {
+            for level in [n.hunger, n.thirst, n.energy, n.social, n.purpose] {
                 assert!((0.0..=1.0).contains(&level));
             }
             assert!((-1.0..=1.0).contains(&agent.mood.valence));

@@ -10,7 +10,7 @@ use crate::family::{
     BOND_TO_PAIR, MUTATION_RATE, MUTATION_SIZE,
 };
 use crate::genome::{Gene, Genome};
-use crate::housing::{district_of, DISTRICT_COUNT};
+use crate::housing::{district_of, DISTRICTS_PER_SIDE, DISTRICT_COUNT};
 use crate::justice::{conviction_chance, deterrence, sentence_for, theft_urge, CrimeKind, Justice};
 use crate::memory::{Event, Memory};
 use crate::names::NameBook;
@@ -229,6 +229,50 @@ impl World {
             Some(((dx, dy), _)) => self.wrap((pos.0 + dx.signum(), pos.1 + dy.signum())),
             None => self.random_step(pos),
         }
+    }
+
+    /// Whether a position is adjacent to a district fountain or the outer river/lake perimeter.
+    pub fn is_near_water(&self, pos: (i32, i32)) -> bool {
+        if pos.0 <= 1 || pos.1 <= 1 || pos.0 >= self.width - 2 || pos.1 >= self.height - 2 {
+            return true;
+        }
+        let (f_x, f_y) = self.closest_fountain(pos);
+        (pos.0 - f_x).abs() <= 1 && (pos.1 - f_y).abs() <= 1
+    }
+
+    fn closest_fountain(&self, pos: (i32, i32)) -> (i32, i32) {
+        let side = DISTRICTS_PER_SIDE;
+        let dw = self.width / side;
+        let dh = self.height / side;
+        let dx = (pos.0 * side / self.width).clamp(0, side - 1);
+        let dy = (pos.1 * side / self.height).clamp(0, side - 1);
+        (dx * dw + dw / 2, dy * dh + dh / 2)
+    }
+
+    fn step_toward_water(&mut self, pos: (i32, i32)) -> (i32, i32) {
+        let (fx, fy) = self.closest_fountain(pos);
+        let f_dist = (pos.0 - fx).abs() + (pos.1 - fy).abs();
+        let border_dist = pos
+            .0
+            .min(pos.1)
+            .min(self.width - 1 - pos.0)
+            .min(self.height - 1 - pos.1);
+        let target = if border_dist < f_dist {
+            if pos.0 == border_dist {
+                (0, pos.1)
+            } else if pos.1 == border_dist {
+                (pos.0, 0)
+            } else if self.width - 1 - pos.0 == border_dist {
+                (self.width - 1, pos.1)
+            } else {
+                (pos.0, self.height - 1)
+            }
+        } else {
+            (fx, fy)
+        };
+        let dx = (target.0 - pos.0).signum();
+        let dy = (target.1 - pos.1).signum();
+        self.wrap((pos.0 + dx, pos.1 + dy))
     }
 
     fn crowd_map(&self) -> BTreeMap<(i32, i32), u32> {
@@ -1009,6 +1053,7 @@ impl World {
                 .saturating_sub(1),
             food_underfoot: self.food[self.cell(agent.pos)] > 0.1,
             meal_affordable: self.economy.market.can_sell_to(agent.money),
+            water_nearby: self.is_near_water(agent.pos),
             employed: agent.job.is_some(),
             money_pressure: money_pressure(agent.money),
         };
@@ -1029,6 +1074,13 @@ impl World {
                     agent.needs.add(Need::Hunger, bite * 1.5);
                 } else {
                     agent.pos = self.step_toward_food(agent.pos);
+                }
+            }
+            Action::Drink => {
+                if self.is_near_water(agent.pos) {
+                    agent.needs.add(Need::Thirst, 0.45);
+                } else {
+                    agent.pos = self.step_toward_water(agent.pos);
                 }
             }
             Action::Rest => {
@@ -1052,7 +1104,7 @@ impl World {
         }
 
         agent.age += 1;
-        if agent.needs.hunger <= 0.02 {
+        if agent.needs.hunger <= 0.02 || agent.needs.thirst <= 0.02 {
             agent.starving_for += 1;
         } else {
             agent.starving_for = 0;

@@ -7,7 +7,7 @@ use serde_json::{json, Value};
 
 pub const REPLAY_VERSION: u32 = 1;
 
-pub const ACTIONS: [&str; 5] = ["Eat", "Rest", "Socialize", "Work", "Wander"];
+pub const ACTIONS: [&str; 6] = ["Eat", "Rest", "Socialize", "Work", "Wander", "Drink"];
 
 pub fn action_code(action: Action) -> u8 {
     match action {
@@ -16,6 +16,7 @@ pub fn action_code(action: Action) -> u8 {
         Action::Socialize => 2,
         Action::Work => 3,
         Action::Wander => 4,
+        Action::Drink => 5,
     }
 }
 

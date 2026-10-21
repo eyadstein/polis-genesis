@@ -44,6 +44,7 @@ fn person(world: &World, index: usize) -> Value {
         "mind": a.is_alive().then(|| mind_json(a)),
         "mood": a.mood.valence,
         "hunger": a.needs.hunger,
+        "thirst": a.needs.thirst,
         "x": a.pos.0,
         "y": a.pos.1,
         "voice": a.is_alive().then(|| inner_voice(world, a.id)),

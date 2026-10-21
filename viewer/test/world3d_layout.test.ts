@@ -48,6 +48,15 @@ describe("layout", () => {
   it("is repeatable", () => {
     expect(buildLayout(town)).toEqual(layout);
   });
+  it("places a fountain in the middle of every district", () => {
+    expect(layout.fountains).toHaveLength(16);
+    for (const f of layout.fountains) {
+      const dx = (f.district % 4) * 16;
+      const dz = Math.floor(f.district / 4) * 16;
+      expect(f.x).toBeCloseTo(dx + 8);
+      expect(f.z).toBeCloseTo(dz + 8);
+    }
+  });
   it("pushes people out of walls", () => {
     const h = layout.houses[0]!;
     const out = pushOut(layout, h.x, h.z);

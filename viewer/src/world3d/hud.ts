@@ -7,6 +7,7 @@ import { SimClock, TICKS_PER_DAY, clockLabel, phaseName } from "./clock";
 import { residentsByFloor, workersOf, type Building, type Layout } from "./layout";
 import { QUIET_NEWS } from "./news";
 import type { ReplayTalk } from "./replay";
+import { TownSoundscape } from "./soundscape";
 import { parseTraits } from "./traits";
 
 const SPEEDS: [label: string, ticksPerSecond: number][] = [
@@ -169,13 +170,19 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
     talkToggle.textContent = feed.hidden ? "Conversations: off" : "Conversations: on";
   });
 
+  const soundscape = new TownSoundscape();
+  const audioToggle = button("Audio: off", "Toggle ambient soundscape and water flow", () => {
+    const on = soundscape.toggle();
+    audioToggle.textContent = on ? "Audio: on" : "Audio: off";
+  });
+
   const controls = el("div", "hud-row");
   if (live) {
     controls.append(play, speed);
     for (const n of [1, 5, 20]) {
       controls.append(button(`Add ${n} ${n === 1 ? "person" : "people"}`, "Strangers arrive in town", () => live.addPeople(n)));
     }
-    controls.append(talkToggle);
+    controls.append(talkToggle, audioToggle);
     bar.append(controls);
   } else {
     controls.append(
@@ -187,6 +194,7 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
       direction,
       speed,
       talkToggle,
+      audioToggle,
     );
     bar.append(scrub, controls);
   }

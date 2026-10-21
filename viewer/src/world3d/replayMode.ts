@@ -37,6 +37,19 @@ export async function startReplay(root: HTMLElement): Promise<void> {
   });
   scene.onSelect = (id) => hud.showPerson(id);
   scene.onBuilding = (building) => hud.showBuilding(building);
+  hud.setNotice("No living town running (showing replay). Start 'polis_cli serve' to go live.");
+
+  const checkLive = setInterval(async () => {
+    try {
+      const res = await fetch("/api/town");
+      if (res.ok) {
+        clearInterval(checkLive);
+        window.location.reload();
+      }
+    } catch {
+      // waiting for living town server
+    }
+  }, 2000);
 
   let last = performance.now();
   const frame = (now: number): void => {

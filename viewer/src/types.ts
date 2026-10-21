@@ -20,6 +20,7 @@ export interface Person {
   mind?: Mind | null;
   mood: number;
   hunger: number;
+  thirst?: number;
   x: number;
   y: number;
   voice: string | null;

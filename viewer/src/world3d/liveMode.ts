@@ -40,7 +40,19 @@ export async function startLive(root: HTMLElement, firstTown: Town, feed: LiveFe
       status: () => feed.status,
       setPaused: (paused) => void command(feed.setClock({ paused })),
       setSpeed: (speed) => void command(feed.setClock({ speed })),
-      addPeople: (count) => void command(feed.addPeople(count).then(refreshTown)),
+      addPeople: (count) => {
+        void (async () => {
+          try {
+            const ids = await feed.addPeople(count);
+            await refreshTown();
+            await poll();
+            const text = `${ids.length} ${ids.length === 1 ? "person" : "people"} arrived in town.`;
+            hud.setNotice(text);
+          } catch (error) {
+            hud.setNotice(error instanceof Error ? error.message : "The town refused that.");
+          }
+        })();
+      },
     },
   );
   scene.onSelect = (id) => hud.showPerson(id);

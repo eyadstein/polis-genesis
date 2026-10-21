@@ -5,6 +5,7 @@ use crate::genome::{Gene, Genome};
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Need {
     Hunger,
+    Thirst,
     Energy,
     Social,
     Purpose,
@@ -13,6 +14,7 @@ pub enum Need {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Needs {
     pub hunger: f32,
+    pub thirst: f32,
     pub energy: f32,
     pub social: f32,
     pub purpose: f32,
@@ -22,6 +24,7 @@ impl Needs {
     pub fn new() -> Self {
         Self {
             hunger: 0.9,
+            thirst: 0.9,
             energy: 0.9,
             social: 0.8,
             purpose: 0.8,
@@ -31,6 +34,7 @@ impl Needs {
     pub fn get(&self, need: Need) -> f32 {
         match need {
             Need::Hunger => self.hunger,
+            Need::Thirst => self.thirst,
             Need::Energy => self.energy,
             Need::Social => self.social,
             Need::Purpose => self.purpose,
@@ -40,6 +44,7 @@ impl Needs {
     pub fn add(&mut self, need: Need, amount: f32) {
         let slot = match need {
             Need::Hunger => &mut self.hunger,
+            Need::Thirst => &mut self.thirst,
             Need::Energy => &mut self.energy,
             Need::Social => &mut self.social,
             Need::Purpose => &mut self.purpose,
@@ -54,17 +59,19 @@ impl Needs {
         let extraversion = genome.get(Gene::Extraversion);
         let conscientiousness = genome.get(Gene::Conscientiousness);
         self.add(Need::Hunger, -0.004 * (0.6 + 0.8 * metabolism));
+        self.add(Need::Thirst, -0.005 * (0.6 + 0.8 * metabolism));
         self.add(Need::Energy, -0.003);
         self.add(Need::Social, -0.002 * (0.4 + 1.2 * extraversion));
         self.add(Need::Purpose, -0.0015 * (0.4 + 1.2 * conscientiousness));
     }
 
     pub fn average(&self) -> f32 {
-        (self.hunger + self.energy + self.social + self.purpose) / 4.0
+        (self.hunger + self.thirst + self.energy + self.social + self.purpose) / 5.0
     }
 
     pub fn lowest(&self) -> f32 {
         self.hunger
+            .min(self.thirst)
             .min(self.energy)
             .min(self.social)
             .min(self.purpose)

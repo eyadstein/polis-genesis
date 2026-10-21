@@ -55,6 +55,12 @@ export interface DistrictPlot {
   hue: number;
 }
 
+export interface Fountain {
+  district: number;
+  x: number;
+  z: number;
+}
+
 export interface Layout {
   width: number;
   depth: number;
@@ -63,6 +69,7 @@ export interface Layout {
   workplaces: Workplace[];
   trees: Tree[];
   lamps: Lamp[];
+  fountains: Fountain[];
   districts: DistrictPlot[];
   /** Every plot of ground and what it is used for. */
   lots: { x: number; z: number; use: "house" | "work" | "park" }[];
@@ -221,7 +228,13 @@ export function buildLayout(town: Town): Layout {
     hue: (id * 0.137) % 1,
   }));
 
-  return { width: town.width, depth: town.height, slot, houses, workplaces, trees, lamps, districts, lots, homeOf };
+  const fountains: Fountain[] = districts.map((d) => ({
+    district: d.id,
+    x: d.x + d.size / 2,
+    z: d.z + d.size / 2,
+  }));
+
+  return { width: town.width, depth: town.height, slot, houses, workplaces, trees, lamps, fountains, districts, lots, homeOf };
 }
 
 /** Moves a point out of any building so people walk on the roads. */
