@@ -1,17 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.4.0
 
-* Document the implemented resident decision path and persistence boundaries, replace stale claims about LLM-driven minds and viewer/server capabilities, and add repository guidance for focused, verified pull requests.
-* Correct the README's latest release tag and disclose that the Python package metadata is still at 0.2.0; remove an unsupported neural-minds claim from the package description.
-* Add versioned JSON save/load for the complete Rust simulation state, with invariant validation and deterministic continuation after restoring.
-* Separate buildings, trees, roadways, parked cars, and district fountains into clear footprints; place fountains in reserved park lots and interrupt streets at any plaza crossing. Add a beach promenade, two road-aligned bridges, and a bridge-connected castle beyond the city with a low-poly mountain range and animated waves.
-* Give homes distinct roof colors and profiles plus visible front doors; keep courthouse buildings civic in scale, add bridge-end town gates and varied tree canopies, and lighten pedestrian geometry. Reduce the viewer's pixel-ratio and shadow-map budgets to lower GPU work.
-* Validate world dimensions and reject empty populations before allocating simulation state; add fallible `World::try_new` for callers that need actionable configuration errors.
-* Record the exact seed, initial population, map dimensions, and market food stock in town export format 3. The viewer continues to read format 2 and charts recorded food availability when present.
-* Validate replay frame rows and conversation records before playback, and always record a final frame for short runs.
-* Propagate native simulation failures through the Python command exit status and exercise the package tests on its declared Python 3.9 minimum.
-
+* Add validated, versioned JSON saves and loading for the complete Rust simulation state, including invariant checks and deterministic continuation after restoring.
+* Record simulation seed, initial population, map dimensions, and market food-stock history in export format 3 while retaining viewer compatibility with format 2.
+* Validate replay frames and conversation records, preserve final frames for short runs, and propagate native simulation failures through the Python CLI exit status.
+* Reject invalid world dimensions and empty populations before allocation, with fallible `World::try_new` for actionable configuration errors.
+* Improve the 3D town with distinct building designs, clearer street and plaza layouts, a waterfront promenade, bridges, a connected castle, mountains, varied trees, and animated waves.
+* Reduce Rust resident crowd-lookup costs and temporary allocations in viewer scene updates; lower viewer pixel-ratio and shadow-map budgets.
+* Clarify the implemented resident decision path and persistence boundaries, remove unsupported claims about LLM-driven minds, and improve architecture, performance, contribution, and release documentation.
 ## 0.2.1
 
 * Python package polis genesis for PyPI distribution

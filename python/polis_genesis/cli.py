@@ -69,7 +69,7 @@ def cmd_web(args: argparse.Namespace) -> None:
 def cmd_info(_args: argparse.Namespace) -> None:
     print("==================================================")
     print("  Polis Genesis: Society & Mind Simulator")
-    print("  Version: 0.2.0")
+    print("  Version: 0.4.0")
     print("  Repository: https://github.com/eyadstein/polis-genesis")
     print("  Website: https://eyadstein.github.io/polis-genesis/world.html")
     print("==================================================")

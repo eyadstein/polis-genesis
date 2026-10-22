@@ -132,7 +132,7 @@ The output is written to `viewer/dist`. GitHub Actions builds the site and publi
 
 ## Releases and project status
 
-The latest GitHub release tag is **v0.3.0**. The Python package metadata currently declares **0.2.0**, so the package version has not caught up with the latest repository release. See the [changelog](CHANGELOG.md) for project changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets. GitHub Actions runs Rust, Python, and viewer checks and builds the Pages site.
+The next coordinated release is **v0.4.0**. Its versioned tag triggers GitHub Actions to build the cross-platform Rust CLI binaries and static viewer bundle, create the GitHub release, and publish the Python package. The Python package metadata and CLI version output are aligned at 0.4.0. See the [changelog](CHANGELOG.md) for changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets.
 
 ## Documentation
 
