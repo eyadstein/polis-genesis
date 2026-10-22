@@ -1,9 +1,12 @@
+
 name: release
 on:
   push:
     tags: ["v*"]
+
 permissions:
   contents: write
+
 jobs:
   binaries:
     strategy:
@@ -14,6 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - run: cargo build --release -p polis_cli
+
       - name: Collect the binary
         shell: bash
         run: |
@@ -21,10 +25,12 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then cp target/release/polis_cli.exe out/polis_cli-windows.exe; fi
           if [ "$RUNNER_OS" = "Linux" ]; then cp target/release/polis_cli out/polis_cli-linux; fi
           if [ "$RUNNER_OS" = "macOS" ]; then cp target/release/polis_cli out/polis_cli-macos; fi
+
       - uses: actions/upload-artifact@v4
         with:
           name: bin-${{ runner.os }}
           path: out/*
+
   viewer:
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +47,7 @@ jobs:
         with:
           name: viewer
           path: viewer-dist.zip
+
   publish:
     needs: [binaries, viewer]
     runs-on: ubuntu-latest
@@ -48,10 +55,22 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           path: dist
-      - name: Create the release
+
+      - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*/* --repo "$GITHUB_REPOSITORY" --title "Polis Genesis $GITHUB_REF_NAME" --generate-notes
+        shell: bash
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/*/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/*/* \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "Polis Genesis $GITHUB_REF_NAME" \
+              --generate-notes
+          fi
 
   pypi:
     needs: [binaries, viewer]
