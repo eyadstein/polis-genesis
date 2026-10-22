@@ -4,6 +4,9 @@ import type { Person, Town } from "../types";
 import { FLOORS, FLOOR_HEIGHT } from "./scale";
 
 export const DISTRICTS_PER_SIDE = 4;
+export const FOUNTAIN_PLAZA_CLEARANCE = 1.65;
+export const FOUNTAIN_PLAZA_SIZE = 3;
+const ROAD_WIDTH = 0.58;
 const SLOTS_PER_SIDE = 4;
 
 export type Kind = "Shack" | "Flat" | "House" | "Villa";
@@ -37,6 +40,7 @@ export interface Tree {
   x: number;
   z: number;
   s: number;
+  type: "conifer" | "deciduous";
 }
 
 export interface Lamp {
@@ -61,6 +65,50 @@ export interface Fountain {
   z: number;
 }
 
+export interface Road {
+  axis: "x" | "z";
+  x: number;
+  z: number;
+  width: number;
+  length: number;
+}
+
+export interface Bridge {
+  x: number;
+  z: number;
+  length: number;
+  width: number;
+}
+
+export interface Car {
+  homeId: number;
+  residentId: number;
+  x: number;
+  z: number;
+  color: string;
+}
+
+export interface Waterfront {
+  beach: { x: number; z: number; width: number; length: number };
+  promenade: { x: number; z: number; width: number; length: number };
+}
+
+export interface Mountain {
+  x: number;
+  z: number;
+  radius: number;
+  height: number;
+}
+
+export interface Castle {
+  x: number;
+  z: number;
+  elevation: number;
+}
+
+/** Visual-only vehicle ownership marker based on the exported resident balance. */
+export const AFFLUENT_CAR_THRESHOLD = 250;
+
 export interface Layout {
   width: number;
   depth: number;
@@ -70,6 +118,12 @@ export interface Layout {
   trees: Tree[];
   lamps: Lamp[];
   fountains: Fountain[];
+  roads: Road[];
+  bridges: Bridge[];
+  cars: Car[];
+  waterfront: Waterfront;
+  mountains: Mountain[];
+  castle: Castle;
   districts: DistrictPlot[];
   /** Every plot of ground and what it is used for. */
   lots: { x: number; z: number; use: "house" | "work" | "park" }[];
@@ -97,6 +151,8 @@ export const WORK_TITLES: Record<string, string> = {
   Judge: "Courthouse",
   Lawyer: "Law office",
 };
+
+const CAR_COLORS = ["#9b3438", "#2f5d83", "#3d5948", "#d0c9b6", "#292e39"];
 
 export const DISTRICT_NAMES = [
   "Old Town", "Market Square", "Riverside", "Hilltop",
@@ -177,7 +233,7 @@ export function buildLayout(town: Town): Layout {
         x: spot.x,
         z: spot.z,
         w: shape.w,
-        d: shape.w * (0.85 + hash01(d * 100 + i, 5) * 0.25),
+        d: Math.min(shape.w * (0.85 + hash01(d * 100 + i, 5) * 0.25), slot - ROAD_WIDTH - (home.kind === "Flat" ? 0.45 : 0.08)),
         h: shape.h * (home.kind === "Flat" ? 1 : jitter),
         floors: shape.floors,
         occupants: home.people,
@@ -200,17 +256,29 @@ export function buildLayout(town: Town): Layout {
     }
   });
 
+  const fountains: Fountain[] = [];
   for (const [d, spots] of free) {
-    spots.forEach((spot, i) => {
+    if (spots.length === 0) continue;
+    const districtX = (d % DISTRICTS_PER_SIDE) * side;
+    const districtZ = Math.floor(d / DISTRICTS_PER_SIDE) * side;
+    const centerX = districtX + side / 2;
+    const centerZ = districtZ + side / 2;
+    let fountainIndex = 0;
+    for (let i = 1; i < spots.length; i++) {
+      const candidate = spots[i]!;
+      const best = spots[fountainIndex]!;
+      if (Math.hypot(candidate.x - centerX, candidate.z - centerZ) < Math.hypot(best.x - centerX, best.z - centerZ)) fountainIndex = i;
+    }
+    const [spot] = spots.splice(fountainIndex, 1);
+    if (spot) {
       lots.push({ x: spot.x, z: spot.z, use: "park" });
-      const count = 1 + Math.floor(hash01(d, i + 40) * 3);
-      for (let t = 0; t < count; t++) {
-        trees.push({
-          x: spot.x + (hash01(d * 31 + i, t + 1) - 0.5) * slot * 0.7,
-          z: spot.z + (hash01(d * 31 + i, t + 9) - 0.5) * slot * 0.7,
-          s: 0.85 + hash01(d + i, t + 20) * 0.3,
-        });
-      }
+      fountains.push({ district: d, x: spot.x, z: spot.z });
+    }
+  }
+
+  for (const spots of free.values()) {
+    spots.forEach((spot) => {
+      lots.push({ x: spot.x, z: spot.z, use: "park" });
     });
   }
 
@@ -228,13 +296,133 @@ export function buildLayout(town: Town): Layout {
     hue: (id * 0.137) % 1,
   }));
 
-  const fountains: Fountain[] = districts.map((d) => ({
-    district: d.id,
-    x: d.x + d.size / 2,
-    z: d.z + d.size / 2,
+  const roads: Road[] = [];
+  const plazaClearance = FOUNTAIN_PLAZA_CLEARANCE;
+  const addRoad = (axis: Road["axis"], x: number, z: number, length: number): void => {
+    const lineStart = (axis === "x" ? x : z) - length / 2;
+    const lineEnd = lineStart + length;
+    const crossings = fountains
+      .filter((fountain) => Math.abs((axis === "x" ? fountain.z : fountain.x) - (axis === "x" ? z : x)) < 0.001)
+      .map((fountain) => (axis === "x" ? fountain.x : fountain.z))
+      .sort((a, b) => a - b);
+    let segmentStart = lineStart;
+    for (const crossing of crossings) {
+      const gapStart = Math.max(segmentStart, crossing - plazaClearance);
+      const gapEnd = Math.min(lineEnd, crossing + plazaClearance);
+      if (gapStart > segmentStart) {
+        const segmentLength = gapStart - segmentStart;
+        roads.push({ axis, x: axis === "x" ? (segmentStart + gapStart) / 2 : x, z: axis === "z" ? (segmentStart + gapStart) / 2 : z, width: ROAD_WIDTH, length: segmentLength });
+      }
+      segmentStart = Math.max(segmentStart, gapEnd);
+    }
+    if (segmentStart < lineEnd) {
+      const segmentLength = lineEnd - segmentStart;
+      roads.push({ axis, x: axis === "x" ? (segmentStart + lineEnd) / 2 : x, z: axis === "z" ? (segmentStart + lineEnd) / 2 : z, width: ROAD_WIDTH, length: segmentLength });
+    }
+  };
+  for (let x = 0; x <= town.width; x += slot) {
+    addRoad("z", x, town.height / 2, town.height);
+  }
+  for (let z = 0; z <= town.height; z += slot) {
+    addRoad("x", town.width / 2, z, town.width);
+  }
+
+  const treeOffsets = [
+    { x: 0, z: 0 },
+    ...Array.from({ length: 8 }, (_, i) => ({
+      x: Math.cos(i * Math.PI / 4) * 0.75,
+      z: Math.sin(i * Math.PI / 4) * 0.75,
+    })),
+  ];
+  for (const lot of lots.filter((entry) => entry.use === "park" && !fountains.some((f) => f.x === entry.x && f.z === entry.z))) {
+    const district = districts.find((d) => lot.x >= d.x && lot.x < d.x + d.size && lot.z >= d.z && lot.z < d.z + d.size);
+    const districtId = district?.id ?? 0;
+    const count = 1 + Math.floor(hash01(districtId, Math.round(lot.x + lot.z) + 40) * 3);
+    const phase = Math.floor(hash01(districtId, Math.round(lot.x + lot.z) + 90) * treeOffsets.length);
+    let placed = 0;
+    for (let attempt = 0; attempt < treeOffsets.length && placed < count; attempt++) {
+      const offset = treeOffsets[(attempt + phase) % treeOffsets.length]!;
+      const tree = {
+        x: lot.x + offset.x,
+        z: lot.z + offset.z,
+        s: 0.85 + hash01(districtId, Math.round(lot.x * 7 + lot.z * 11) + placed + 20) * 0.3,
+        type: hash01(districtId, Math.round(lot.x * 13 + lot.z * 17) + attempt) < 0.62 ? "conifer" as const : "deciduous" as const,
+      };
+      const radius = tree.s * 0.5;
+      const hitsBuilding = [...houses, ...workplaces].some((building) => {
+        const roofMargin = 0.12;
+        const dx = Math.max(Math.abs(tree.x - building.x) - building.w / 2 - roofMargin, 0);
+        const dz = Math.max(Math.abs(tree.z - building.z) - building.d / 2 - roofMargin, 0);
+        return Math.hypot(dx, dz) < radius;
+      });
+      const hitsRoad = roads.some((road) => {
+        const distance = road.axis === "x" ? Math.abs(tree.z - road.z) : Math.abs(tree.x - road.x);
+        const along = road.axis === "x" ? tree.x : tree.z;
+        const center = road.axis === "x" ? road.x : road.z;
+        return distance < road.width / 2 + radius && Math.abs(along - center) < road.length / 2 + radius;
+      });
+      const hitsFountain = fountains.some((f) => Math.hypot(tree.x - f.x, tree.z - f.z) < radius + 1.25);
+      const hitsTree = trees.some((other) => Math.hypot(tree.x - other.x, tree.z - other.z) < radius + other.s * 0.5);
+      if (hitsBuilding || hitsRoad || hitsFountain || hitsTree) continue;
+      trees.push(tree);
+      placed++;
+    }
+  }
+
+  // Crossings line up with the quarter points of the town's street grid.
+  const bridges: Bridge[] = [0.25, 0.75].map((fraction) => ({
+    x: town.width + 12.25,
+    z: Math.round((town.height * fraction) / slot) * slot,
+    length: 25,
+    width: 2.6,
   }));
 
-  return { width: town.width, depth: town.height, slot, houses, workplaces, trees, lamps, fountains, districts, lots, homeOf };
+  const waterfront: Waterfront = {
+    beach: { x: town.width + 4.5, z: town.height / 2, width: 9, length: town.height + 16 },
+    promenade: { x: town.width + 1.7, z: town.height / 2, width: 1.25, length: town.height + 16 },
+  };
+
+  const outerBridge = bridges[1] ?? bridges[0]!;
+  // Keep the full 15-unit castle plinth beyond the channel, with a clear dry-bank gap.
+  const castle: Castle = { x: town.width + 32, z: outerBridge.z, elevation: 0.65 };
+  const mountains: Mountain[] = [
+    { x: town.width + 60, z: castle.z - 20, radius: 18, height: 18 },
+    { x: town.width + 65, z: castle.z + 2, radius: 16, height: 21 },
+    { x: town.width + 70, z: castle.z + 24, radius: 17, height: 17 },
+  ];
+
+  const residentById = new Map(town.people.map((person) => [person.id, person]));
+  const richHomes = houses
+    .map((house) => ({
+      house,
+      resident: house.occupants
+        .map((id) => residentById.get(id))
+        .filter((person): person is Person => person !== undefined && person.money >= AFFLUENT_CAR_THRESHOLD)
+        .sort((a, b) => b.money - a.money || a.id - b.id)[0],
+    }))
+    .filter((entry): entry is { house: House; resident: Person } => entry.house.id !== null && entry.resident !== undefined)
+    .sort((a, b) => b.resident.money - a.resident.money || (a.house.id ?? 0) - (b.house.id ?? 0));
+  const occupiedParkingSpots = new Set<string>();
+  const cars: Car[] = [];
+  for (const { house, resident } of richHomes) {
+    const preferredSide = hash01(house.id ?? resident.id, 17) < 0.5 ? -1 : 1;
+    for (const side of [preferredSide, -preferredSide]) {
+      const roadZ = house.z + side * slot / 2;
+      const key = `${house.x},${roadZ}`;
+      if (roadZ < 0 || roadZ > town.height || occupiedParkingSpots.has(key)) continue;
+      occupiedParkingSpots.add(key);
+      cars.push({
+        homeId: house.id!,
+        residentId: resident.id,
+        x: house.x,
+        z: roadZ + side * 0.05,
+        color: CAR_COLORS[Math.floor(hash01(resident.id, 808) * CAR_COLORS.length)] ?? CAR_COLORS[0]!,
+      });
+      break;
+    }
+  }
+
+  return { width: town.width, depth: town.height, slot, houses, workplaces, trees, lamps, fountains, roads, bridges, cars, waterfront, mountains, castle, districts, lots, homeOf };
 }
 
 /** Moves a point out of any building so people walk on the roads. */
@@ -290,5 +478,6 @@ export function workersOf(layout: Layout, town: Town, site: Workplace): Person[]
 export function layoutSignature(layout: Layout): string {
   const houses = layout.houses.map((h) => `${h.id ?? "x"}:${h.kind}:${h.occupants.length}`).join(",");
   const work = layout.workplaces.map((w) => `${w.job}@${w.x},${w.z}`).join(",");
-  return `${houses}|${work}`;
+  const cars = layout.cars.map((car) => `${car.homeId}:${car.residentId}:${car.color}`).join(",");
+  return `${houses}|${work}|${cars}`;
 }

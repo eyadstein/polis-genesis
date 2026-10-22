@@ -33,6 +33,10 @@ The recorded benchmark above is a JavaScript scene-update benchmark with renderi
 
 No real-browser frame-time, heap, or GPU measurements are recorded in this repository yet. The earlier live demo attempt produced an unusable black canvas, and the available automation did not expose browser performance traces. These manual steps are the next measurement, not a substitute result.
 
+## House detail and GPU workload
+
+Homes now use kind-specific roof profiles and colors with instanced front doors and lintels. Those details are one town-wide draw batch rather than one draw call per home. Bridge gates, castle parts, and the two tree canopy types are also instanced. The courthouse stays an ordinary civic building; the single castle is placed beyond the river, reached by the outer bridge, with a low-poly mountain range behind it. River and lake surfaces use a small vertex wave plus a moving surface shimmer. Pedestrian spheres and capsules use fewer vertices, and only bodies cast pedestrian shadows. To reduce GPU work, the renderer caps device pixel ratio at 1.5 instead of 2 and uses a 1024×1024 sun shadow map instead of 2048×2048. At a device pixel ratio of 2, the cap shades about 44% fewer screen pixels; the shadow map contains 75% fewer texels. These are workload reductions, not measured frame-rate gains. The available benchmark stubs WebGL rendering, and this environment did not expose stable browser/GPU frame timing. Profile the deployed viewer on representative hardware before reporting FPS changes.
+
 ## Change and trade-offs
 
 `WorldScene.update` now reuses its transform vectors, quaternions, matrix, collision output, and visibility stamps. `pushOut` scans houses and workplaces in their existing order without constructing a combined array and accepts a caller-owned output point. Position collision checks and rendered instance values are unchanged; callers that omit the optional output point still receive a fresh object as before. A fixed-size visibility stamp array uses 12 KiB for the scene capacity of 3,000 instances and avoids creating a set every update.

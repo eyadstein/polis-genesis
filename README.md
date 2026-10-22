@@ -22,7 +22,7 @@ The Rust engine keeps simulation state and seeded behavior reproducible. A Pytho
 - **Town systems:** jobs, wages, markets, housing, taxes, law enforcement, courts, and a shared treasury.
 - **World simulation:** seeded runs, reports, JSON snapshots, and recorded replays.
 - **Resumable Rust state:** versioned JSON saves preserve the full simulation, including its random-number generator; these are separate from viewer snapshots.
-- **3D viewer:** districts, residents, homes, time controls, news, and replay playback, built with Three.js and Vite.
+- **3D viewer:** districts, residents, detailed homes, civic buildings, varied trees, spaced streets, fountain plazas, a beach promenade, bridges, animated water, and a distant castle backed by low-poly mountains, built with Three.js and Vite. Parked cars are visual markers for occupied homes with a resident balance of at least 250 coins; vehicles are not yet owned or simulated by the Rust economy.
 - **Optional local speech:** the `ollama` feature can use a local Ollama model; rule-based speech remains the default and fallback.
 - **Python analysis:** a standard-library report script reads exported town JSON.
 
@@ -119,6 +119,8 @@ npm run dev
 ```
 
 Open the Vite URL printed in the terminal and navigate to `world.html`. The development server forwards `/api` requests to the town server on `127.0.0.1:8787`. On Windows, `./run.ps1` starts both processes and opens the viewer.
+
+With the live town server connected, the viewer toolbar includes **Add 1 person**, **Add 5 people**, and **Add 20 people** controls. Recorded replays, including the static GitHub Pages demo, cannot change their population; start the live server above to use these controls.
 
 Build the static viewer from the `viewer` directory with:
 
