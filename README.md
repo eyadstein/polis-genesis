@@ -120,6 +120,16 @@ npm run dev
 
 Open the Vite URL printed in the terminal and navigate to `world.html`. The development server forwards `/api` requests to the town server on `127.0.0.1:8787`. On Windows, `./run.ps1` starts both processes and opens the viewer.
 
+The live server exposes a lightweight health endpoint. With the server running,
+check it from PowerShell:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8787/api/health
+```
+
+A healthy server returns JSON with `status` set to `ok`. The endpoint checks
+server responsiveness; it does not measure simulation quality or viewer status.
+
 With the live town server connected, the viewer toolbar includes **Add 1 person**, **Add 5 people**, and **Add 20 people** controls. Recorded replays, including the static GitHub Pages demo, cannot change their population; start the live server above to use these controls.
 
 Build the static viewer from the `viewer` directory with:
@@ -132,7 +142,7 @@ The output is written to `viewer/dist`. GitHub Actions builds the site and publi
 
 ## Releases and project status
 
-The next coordinated release is **v0.4.0**. Its versioned tag triggers GitHub Actions to build the cross-platform Rust CLI binaries and static viewer bundle, create the GitHub release, and publish the Python package. The Python package metadata and CLI version output are aligned at 0.4.0. See the [changelog](CHANGELOG.md) for changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets.
+**Latest release: [v0.4.0 on GitHub](https://github.com/eyadstein/polis-genesis/releases/tag/v0.4.0) and [version 0.4.0 on PyPI](https://pypi.org/project/polis-genesis/0.4.0/).** The release includes cross-platform Rust CLI binaries and the static viewer bundle, and the Python package is published on PyPI. Install it with `python -m pip install polis-genesis==0.4.0`. See the [changelog](CHANGELOG.md) for release details.
 
 ## Documentation
 
