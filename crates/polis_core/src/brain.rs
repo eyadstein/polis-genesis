@@ -10,6 +10,9 @@ use crate::agent::Agent;
 use crate::agent::AgentId;
 use crate::genome::{Gene, Genome};
 use crate::rng::Rng;
+use serde::de::Error as DeError;
+use serde::ser::SerializeStruct;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub const FEATURES: usize = 8;
 pub type Features = [f32; FEATURES];
@@ -38,6 +41,7 @@ const GRUDGE: usize = 7;
 
 const LEARNING_RATE: f32 = 0.2;
 const WEIGHT_LIMIT: f32 = 3.0;
+const STATE_WEIGHT_LIMIT: f32 = 6.0;
 const EXPLORATION: f32 = 0.04;
 const BASELINE_RATE: f32 = 0.05;
 
@@ -70,6 +74,48 @@ pub struct Policy<const A: usize> {
     trials: u32,
 }
 
+impl<const A: usize> Serialize for Policy<A> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut state = serializer.serialize_struct("Policy", 3)?;
+        state.serialize_field("weights", &self.weights[..])?;
+        state.serialize_field("baseline", &self.baseline)?;
+        state.serialize_field("trials", &self.trials)?;
+        state.end()
+    }
+}
+
+impl<'de, const A: usize> Deserialize<'de> for Policy<A> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct PolicyData {
+            weights: Vec<Features>,
+            baseline: f32,
+            trials: u32,
+        }
+
+        let data = PolicyData::deserialize(deserializer)?;
+        let weights: [Features; A] =
+            data.weights.try_into().map_err(|weights: Vec<Features>| {
+                D::Error::custom(format!(
+                    "policy has {} choices, expected {A}",
+                    weights.len()
+                ))
+            })?;
+        Ok(Self {
+            weights,
+            baseline: data.baseline,
+            trials: data.trials,
+        })
+    }
+}
+
 impl<const A: usize> Policy<A> {
     pub fn new(weights: [Features; A]) -> Self {
         Self {
@@ -81,6 +127,16 @@ impl<const A: usize> Policy<A> {
 
     pub fn trials(&self) -> u32 {
         self.trials
+    }
+
+    fn is_valid(&self) -> bool {
+        self.baseline.is_finite()
+            && (-1.0..=1.0).contains(&self.baseline)
+            && self
+                .weights
+                .iter()
+                .flatten()
+                .all(|weight| weight.is_finite() && weight.abs() <= STATE_WEIGHT_LIMIT)
     }
 
     /// The chance of each choice. Choices that are not allowed get none.
@@ -176,13 +232,17 @@ pub struct MindSummary {
     pub quarrels: f32,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Brain {
     pub reply: Policy<REPLIES>,
     pub opener: Policy<OPENERS>,
 }
 
 impl Brain {
+    pub(crate) fn is_valid(&self) -> bool {
+        self.reply.is_valid() && self.opener.is_valid()
+    }
+
     /// The temperament someone is born with, before life teaches them anything.
     pub fn from_genome(genome: &Genome) -> Self {
         let agree = genome.get(Gene::Agreeableness) - 0.5;

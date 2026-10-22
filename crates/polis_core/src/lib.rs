@@ -29,4 +29,4 @@ pub use housing::Kind;
 pub use justice::{Crime, CrimeKind};
 pub use memory::{Event, Memory, Mind};
 pub use talk::{Act, Reply, Utterance};
-pub use world::{Stats, World, WorldConfig};
+pub use world::{Stats, World, WorldConfig, WorldSaveError, SAVE_FORMAT_VERSION};

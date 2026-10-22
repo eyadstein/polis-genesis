@@ -8,13 +8,14 @@ use crate::memory::Mind;
 use crate::mood::Mood;
 use crate::needs::{urgency, Need, Needs};
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 
 pub type AgentId = u32;
 
 /// Age in ticks at which a child becomes an adult.
 pub const ADULT_AGE: u32 = 4000;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Action {
     Eat,
     Rest,
@@ -24,7 +25,7 @@ pub enum Action {
     Drink,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Death {
     Starvation,
     OldAge,
@@ -47,7 +48,7 @@ pub fn money_pressure(money: Coins) -> f32 {
     (1.0 - money as f32 / SAFETY_SAVINGS as f32).clamp(0.0, 1.0)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Agent {
     pub id: AgentId,
     pub name: String,

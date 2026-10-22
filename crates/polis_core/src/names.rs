@@ -1,6 +1,7 @@
 //! Name generation. Names are built from syllables and kept unique.
 
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 const STARTS: [&str; 16] = [
@@ -11,7 +12,7 @@ const ENDS: [&str; 14] = [
     "r", "n", "m", "l", "d", "s", "a", "e", "o", "ya", "an", "ir", "im", "el",
 ];
 
-#[derive(Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NameBook {
     used: BTreeSet<String>,
 }
@@ -19,6 +20,14 @@ pub struct NameBook {
 impl NameBook {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub(crate) fn contains(&self, name: &str) -> bool {
+        self.used.contains(name)
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        self.used.len()
     }
 
     /// A name no one else in this world has, guaranteed.

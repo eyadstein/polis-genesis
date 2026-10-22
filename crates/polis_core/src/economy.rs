@@ -7,6 +7,7 @@
 use crate::genome::{Gene, Genome};
 use crate::housing::Realty;
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 
 pub type Coins = i64;
 
@@ -24,7 +25,7 @@ const MAX_PRICE: Coins = 20;
 const FOOD_PER_WORK: u32 = 2;
 const SHOPKEEPER_WAGE: Coins = 5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Job {
     Farmer,
     Builder,
@@ -111,7 +112,7 @@ pub fn wage_for(base: Coins, fit: f32, experience: u32, employer_cash: Coins) ->
     (base * skill_percent(fit, experience) * solvency_percent(employer_cash) / 10_000).max(1)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Market {
     pub cash: Coins,
     pub stock: u32,
@@ -214,7 +215,7 @@ pub fn gini(holdings: &mut [Coins]) -> f32 {
 }
 
 /// Tax money, and the public workers it pays: police, judges, and lawyers.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Treasury {
     pub cash: Coins,
 }
@@ -244,7 +245,7 @@ pub fn wealth_tax(money: Coins) -> Coins {
     (money - TAX_FREE).max(0) / 20
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Economy {
     pub market: Market,
     pub realty: Realty,

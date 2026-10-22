@@ -33,6 +33,44 @@ fn world_keeps_its_seed_and_initial_population_as_run_metadata() {
     assert_eq!(world.seed, 42);
     assert_eq!(world.initial_population, 12);
 }
+
+#[test]
+fn a_saved_world_round_trips_and_continues_deterministically() {
+    let mut uninterrupted = World::new(small_config(409));
+    uninterrupted.run(2400);
+
+    let save = uninterrupted.save_json().expect("world can be saved");
+    let mut restored = World::load_json(&save).expect("save can be restored");
+    assert_eq!(restored.save_json().unwrap(), save);
+
+    uninterrupted.run(400);
+    restored.run(400);
+    assert_eq!(
+        restored.save_json().unwrap(),
+        uninterrupted.save_json().unwrap(),
+        "restoring must preserve all state needed for the same future"
+    );
+}
+
+#[test]
+fn save_loading_rejects_unsupported_versions_and_invalid_resident_state() {
+    let world = World::new(small_config(410));
+    let save = world.save_json().expect("world can be saved");
+    let mut value: serde_json::Value = serde_json::from_str(&save).unwrap();
+
+    value["format_version"] = 99.into();
+    assert!(matches!(
+        World::load_json(&value.to_string()),
+        Err(WorldSaveError::UnsupportedVersion(99))
+    ));
+
+    value["format_version"] = u64::from(SAVE_FORMAT_VERSION).into();
+    value["world"]["agents"][0]["pos"][0] = 999.into();
+    assert!(matches!(
+        World::load_json(&value.to_string()),
+        Err(WorldSaveError::InvalidState(_))
+    ));
+}
 use crate::genome::{Gene, Genome};
 use crate::rng::Rng;
 use std::collections::BTreeSet;

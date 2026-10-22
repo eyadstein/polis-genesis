@@ -4,6 +4,7 @@
 
 * Document the implemented resident decision path and persistence boundaries, replace stale claims about LLM-driven minds and viewer/server capabilities, and add repository guidance for focused, verified pull requests.
 * Correct the README's latest release tag and disclose that the Python package metadata is still at 0.2.0; remove an unsupported neural-minds claim from the package description.
+* Add versioned JSON save/load for the complete Rust simulation state, with invariant validation and deterministic continuation after restoring.
 * Validate world dimensions and reject empty populations before allocating simulation state; add fallible `World::try_new` for callers that need actionable configuration errors.
 * Record the exact seed, initial population, map dimensions, and market food stock in town export format 3. The viewer continues to read format 2 and charts recorded food availability when present.
 * Validate replay frame rows and conversation records before playback, and always record a final frame for short runs.
