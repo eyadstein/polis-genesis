@@ -21,6 +21,7 @@ The Rust engine keeps simulation state and seeded behavior reproducible. A Pytho
 - **People and behavior:** genomes, needs, moods, movement, memory, relationships, conversation, and family life.
 - **Town systems:** jobs, wages, markets, housing, taxes, law enforcement, courts, and a shared treasury.
 - **World simulation:** seeded runs, reports, JSON snapshots, and recorded replays.
+- **Resumable Rust state:** versioned JSON saves preserve the full simulation, including its random-number generator; these are separate from viewer snapshots.
 - **3D viewer:** districts, residents, homes, time controls, news, and replay playback, built with Three.js and Vite.
 - **Optional local speech:** the `ollama` feature can use a local Ollama model; rule-based speech remains the default and fallback.
 - **Python analysis:** a standard-library report script reads exported town JSON.
@@ -91,6 +92,15 @@ python tools/analyze.py town.json
 ```
 
 Town exports use format 3 and record the exact seed, initial population, map size, and market food stock over time. The viewer also reads format 2 snapshots.
+
+Rust applications can save and resume the complete simulation state:
+
+```rust
+let save = world.save_json()?;
+let resumed = polis_core::World::load_json(&save)?;
+```
+
+Simulation saves currently use format version 1. The loader rejects unsupported versions and validates restored state. Town exports and replay files remain separate formats for the viewer.
 
 ### Run the live 3D viewer locally
 

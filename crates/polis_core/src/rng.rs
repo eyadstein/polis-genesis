@@ -2,7 +2,9 @@
 //!
 //! No external crates are used, so results never depend on a library version.
 
-#[derive(Clone, Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Rng {
     state: u64,
 }

@@ -1,8 +1,9 @@
 //! Basic needs. A value of 1.0 means fully satisfied, 0.0 means desperate.
 
 use crate::genome::{Gene, Genome};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Need {
     Hunger,
     Thirst,
@@ -11,7 +12,7 @@ pub enum Need {
     Purpose,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Needs {
     pub hunger: f32,
     pub thirst: f32,
