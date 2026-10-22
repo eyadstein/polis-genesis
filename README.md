@@ -120,11 +120,13 @@ The output is written to `viewer/dist`. GitHub Actions builds the site and publi
 
 ## Releases and project status
 
-The latest tagged GitHub release is **v0.2.0**. The Python package metadata also currently declares version **0.2.0**. See the [changelog](CHANGELOG.md) for project changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets. GitHub Actions runs Rust, Python, and viewer checks and builds the Pages site.
+The latest GitHub release tag is **v0.3.0**. The Python package metadata currently declares **0.2.0**, so the package version has not caught up with the latest repository release. See the [changelog](CHANGELOG.md) for project changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets. GitHub Actions runs Rust, Python, and viewer checks and builds the Pages site.
 
 ## Documentation
 
+- [Agent architecture and evaluation](docs/agent-architecture.md)
 - [Design notes](docs/DESIGN.md)
+- [Viewer performance notes](docs/viewer-performance.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [MIT License](LICENSE)

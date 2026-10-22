@@ -1,16 +1,14 @@
 # Design notes
 
-## Two layer minds
+## Resident decisions
 
-Thousands of people cannot all call a language model every tick. Every person has a fast mind (needs, mood, utility based choice) that runs always. People near the observer or in important moments are promoted to a deep mind backed by a language model. Their memory summary travels with them when they are demoted, so they stay consistent.
+Every resident has needs, mood, genome traits, and social state. Each world tick, the engine builds a small local `Percept` and scores a fixed set of actions using need urgency, traits, available affordances, and seeded random variation. The world executes the selected action and owns all state changes. This is a deterministic utility-style policy, not a general planner. There is no observer-driven promotion to a language-model-backed mind.
 
-## The world is real to them
-
-A mind never receives the words game, simulation, or player. It receives first person perception only: what is around, what the body feels, what is remembered. Language model prompts are written as a person's inner voice, and outputs are checked for any leak of outside knowledge.
+The optional Ollama integration belongs to `polis_mind` and generates conversation text. It is not called for per-tick decisions and does not change authoritative world state. See [Agent architecture and evaluation](agent-architecture.md) for implemented state, persistence limits, and staged plans.
 
 ## Determinism
 
-All randomness comes from one seeded generator. Iteration order is fixed. A state hash is checked in tests so any change that breaks reproducibility is caught.
+Randomness comes from the world's seeded generator, and the tick path processes residents in stable vector order. Tests compare complete worlds from equal seeds and check that different seeds diverge. There is not yet a versioned save/load continuation or state-hash contract.
 
 ## Uniqueness
 
@@ -66,16 +64,14 @@ The town treasury is funded by a wealth tax (one twentieth of savings above 150 
 
 Known limits: the police always charge the true offender, so wrongful convictions are not modeled. Acquittals therefore free guilty people, which is why only about a third of cases end in conviction. There is no murder, no organized crime, and no parole. Public jobs open and close with the caseload, so staffing is uneven.
 
-## Languages
+## Languages and runtime
 
-Rust holds everything that must be fast and exactly repeatable. Python reads the JSON export for analysis. A TypeScript viewer, a Go server for a shared online world, WGSL shaders for large crowds, and SQL storage are planned, each only where it is the best fit.
+Rust contains the simulation engine, command-line tools, and local HTTP server. Python provides command-line packaging and offline analysis of exported JSON. The browser viewer is TypeScript with Three.js and Vite. A shared online server, custom large-crowd shaders, and SQL persistence are not implemented and have no committed adoption decision.
 
 ## Free stack
 
-Rust, SQLite, local models through open runtimes, GitHub Actions. No paid service is required.
+Rust, Python, TypeScript, GitHub Actions, and optional local speech through Ollama. No paid service is required. SQLite persistence is not implemented.
 
 ## Viewer
 
-The viewer is plain TypeScript with no framework, built with Vite and tested with Vitest. Town export format 3 adds run metadata and market food-stock measurements to the version 2 data. The run seed is written as a decimal string so all 64 bits remain exact in JavaScript. The viewer accepts formats 2 and 3, validates required town fields and replay frame rows, and reports malformed or unsupported files with a clear error. All text from the file is escaped before it reaches the page. The map is always drawn on a fixed light paper color so every dot keeps at least 3 to 1 contrast, and tests check text contrast for WCAG AA in light and dark themes. Controls have names, tables have headers, and the tabs work with the arrow keys. React is left out for now because the page is small, and it can be added when the interface grows.
-
-Known limits: the viewer shows one saved moment, not a live town. It has been tested in a simulated browser, not in every real one.
+The viewer is plain TypeScript with no UI framework, built with Vite and tested with Vitest. Town export format 3 adds run metadata and market food-stock measurements to format 2; the viewer accepts formats 2 and 3 and validates required town and replay data. The run seed is written as a decimal string so all 64 bits remain exact in JavaScript. The same viewer can display saved exports and connect to the local HTTP simulation server. The exported snapshot is not a resumable save. Browser and GPU performance still need real-browser profiling with representative exports; see [viewer performance notes](viewer-performance.md).
