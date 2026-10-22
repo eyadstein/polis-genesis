@@ -20,6 +20,7 @@ const CAPACITY = 3000;
 const SKY_NIGHT = new THREE.Color("#060a18");
 const SKY_DAY = new THREE.Color("#8ec5ff");
 const SKY_DUSK = new THREE.Color("#f2a05a");
+const SUN_DUSK = new THREE.Color("#ff9a55");
 
 export interface Pose {
   x: number;
@@ -89,6 +90,16 @@ export class WorldScene {
   private readonly poses: Pose[] = [];
   private readonly birthTicks: number[] = [];
   private readonly hidden = new THREE.Matrix4().makeScale(0, 0, 0);
+  private readonly visibleAt = new Uint32Array(CAPACITY);
+  private visibilityFrame = 0;
+  private readonly transform = new THREE.Matrix4();
+  private readonly position = new THREE.Vector3();
+  private readonly scale = new THREE.Vector3();
+  private readonly yaw = new THREE.Quaternion();
+  private readonly identity = new THREE.Quaternion();
+  private readonly worldUp = new THREE.Vector3(0, 1, 0);
+  private readonly spot = { x: 0, z: 0 };
+  private readonly skyColor = new THREE.Color();
   private fountainJets: THREE.InstancedMesh | null = null;
   private lastNight = -1;
   private selected: number | null = null;
@@ -594,15 +605,15 @@ export class WorldScene {
     const day = daylight(tick);
     const night = 1 - day;
     const dusk = 1 - Math.abs(day - 0.5) * 2;
-    const sky = SKY_NIGHT.clone().lerp(SKY_DAY, day).lerp(SKY_DUSK, dusk * 0.55);
-    (this.scene.background as THREE.Color).copy(sky);
-    (this.scene.fog as THREE.Fog).color.copy(sky);
+    this.skyColor.copy(SKY_NIGHT).lerp(SKY_DAY, day).lerp(SKY_DUSK, dusk * 0.55);
+    (this.scene.background as THREE.Color).copy(this.skyColor);
+    (this.scene.fog as THREE.Fog).color.copy(this.skyColor);
     const a = sunAngle(tick);
     const elevation = Math.max(0.12, Math.sin(a));
     this.sun.position.set(this.center.x + Math.cos(a) * 90, elevation * 90, this.center.z + 35);
     this.sun.target.position.copy(this.center);
     this.sun.intensity = 2.6 * day;
-    this.sun.color.set("#ffffff").lerp(new THREE.Color("#ff9a55"), dusk * 0.7);
+    this.sun.color.set("#ffffff").lerp(SUN_DUSK, dusk * 0.7);
     this.moon.position.set(this.center.x - 40, 80, this.center.z - 30);
     this.moon.target.position.copy(this.center);
     this.moon.intensity = 0.55 * night;
@@ -633,13 +644,17 @@ export class WorldScene {
   update(tick: number, samples: Sample[], seconds: number): void {
     this.time += seconds;
     this.applyLight(tick);
-    const visible = new Set<number>();
-    const tmp = new THREE.Matrix4();
+    this.visibilityFrame = (this.visibilityFrame + 1) >>> 0;
+    if (this.visibilityFrame === 0) {
+      this.visibleAt.fill(0);
+      this.visibilityFrame = 1;
+    }
+    const visibilityFrame = this.visibilityFrame;
     for (const s of samples) {
       const i = this.index.get(s.id);
       if (i === undefined) continue;
-      visible.add(i);
-      const spot = pushOut(this.layout, s.x + 0.5, s.y + 0.5);
+      this.visibleAt[i] = visibilityFrame;
+      const spot = pushOut(this.layout, s.x + 0.5, s.y + 0.5, this.spot);
       const pose = this.poses[i] as Pose;
       const dx = spot.x - pose.x;
       const dz = spot.z - pose.z;
@@ -651,16 +666,25 @@ export class WorldScene {
       const scale = (adult ? 1 : CHILD_FACTOR) * (this.statures[i] ?? 1) * PERSON_SCALE;
       pose.height = 1.7 * scale * 0.5;
       const bob = Math.abs(Math.sin(this.time * 7 + i)) * (s.action === 1 ? 0 : 0.03);
-      tmp.compose(new THREE.Vector3(spot.x, 0.41 * scale + bob, spot.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), pose.heading), new THREE.Vector3(scale, scale, scale));
-      this.bodies.setMatrixAt(i, tmp);
+      this.position.set(spot.x, 0.41 * scale + bob, spot.z);
+      this.yaw.setFromAxisAngle(this.worldUp, pose.heading);
+      this.scale.set(scale, scale, scale);
+      this.transform.compose(this.position, this.yaw, this.scale);
+      this.bodies.setMatrixAt(i, this.transform);
       const headY = 0.95 * scale + bob;
-      tmp.compose(new THREE.Vector3(spot.x, headY, spot.z), new THREE.Quaternion(), new THREE.Vector3(scale, scale, scale));
-      this.heads.setMatrixAt(i, tmp);
+      this.position.set(spot.x, headY, spot.z);
+      this.transform.compose(this.position, this.identity, this.scale);
+      this.heads.setMatrixAt(i, this.transform);
       const cap = HAIR_HEIGHT[this.hairStyles[i] ?? 0] ?? 1;
-      tmp.compose(new THREE.Vector3(spot.x, headY + 0.02 * scale, spot.z), new THREE.Quaternion(), new THREE.Vector3(scale, Math.max(0.001, cap * scale), scale));
-      this.hair.setMatrixAt(i, tmp);
-      tmp.compose(new THREE.Vector3(spot.x, headY + 0.34 * scale, spot.z), new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), this.time * 2), new THREE.Vector3(0.6, 0.6, 0.6));
-      this.badges.setMatrixAt(i, tmp);
+      this.position.set(spot.x, headY + 0.02 * scale, spot.z);
+      this.scale.set(scale, Math.max(0.001, cap * scale), scale);
+      this.transform.compose(this.position, this.identity, this.scale);
+      this.hair.setMatrixAt(i, this.transform);
+      this.position.set(spot.x, headY + 0.34 * scale, spot.z);
+      this.yaw.setFromAxisAngle(this.worldUp, this.time * 2);
+      this.scale.set(0.6, 0.6, 0.6);
+      this.transform.compose(this.position, this.yaw, this.scale);
+      this.badges.setMatrixAt(i, this.transform);
       const code = s.jailed ? -2 : s.action;
       if (this.lastAction[i] !== code) {
         this.lastAction[i] = code;
@@ -671,7 +695,7 @@ export class WorldScene {
       }
     }
     for (let i = 0; i < this.ids.length; i++) {
-      if (visible.has(i)) continue;
+      if (this.visibleAt[i] === visibilityFrame) continue;
       for (const m of [this.bodies, this.heads, this.hair, this.badges]) m.setMatrixAt(i, this.hidden);
       this.lastAction[i] = -1;
     }
@@ -679,15 +703,12 @@ export class WorldScene {
 
     if (this.fountainJets) {
       const pulse = 1 + Math.sin(this.time * 5) * 0.15;
-      const tmpF = new THREE.Matrix4();
       const fountains = this.layout.fountains ?? [];
       fountains.forEach((f, i) => {
-        tmpF.compose(
-          new THREE.Vector3(f.x, 0.65 + pulse * 0.1, f.z),
-          new THREE.Quaternion(),
-          new THREE.Vector3(1, pulse, 1),
-        );
-        this.fountainJets!.setMatrixAt(i, tmpF);
+        this.position.set(f.x, 0.65 + pulse * 0.1, f.z);
+        this.scale.set(1, pulse, 1);
+        this.transform.compose(this.position, this.identity, this.scale);
+        this.fountainJets!.setMatrixAt(i, this.transform);
       });
       this.fountainJets.instanceMatrix.needsUpdate = true;
     }

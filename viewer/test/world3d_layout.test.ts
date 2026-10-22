@@ -63,4 +63,10 @@ describe("layout", () => {
     expect(Math.abs(out.x - h.x) >= h.w / 2 || Math.abs(out.z - h.z) >= h.d / 2).toBe(true);
     expect(pushOut(layout, 0, 0)).toEqual({ x: 0, z: 0 });
   });
+  it("reuses an optional output point when resolving collisions", () => {
+    const h = layout.houses[0]!;
+    const out = { x: 0, z: 0 };
+    expect(pushOut(layout, h.x, h.z, out)).toBe(out);
+    expect(Math.abs(out.x - h.x) >= h.w / 2 || Math.abs(out.z - h.z) >= h.d / 2).toBe(true);
+  });
 });
