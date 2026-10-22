@@ -184,7 +184,7 @@ export function createHud(root: HTMLElement, clock: SimClock, firstTown: Town, f
     <div class="hud-section"><strong>Controls</strong></div>
     <p>Left drag to orbit, right drag to pan, wheel to zoom. Click any person or house to inspect their life story and memories.</p>
     <div class="hud-section"><strong>Atmosphere</strong></div>
-    <p>Districts feature central fountains, outer river and lake banks, dynamic lighting, and procedural soundscapes.</p>
+    <p>Districts feature park fountains, an outer river and lake, dynamic lighting, and procedural soundscapes.</p>
     <div class="hud-section"><strong>Links</strong></div>
     <p><a href="https://github.com/eyadstein/polis-genesis" target="_blank">GitHub Repository</a> | <a href="https://pypi.org/project/polis-genesis" target="_blank">PyPI Package</a> | <a href="https://eyadstein.github.io/polis-genesis/world.html" target="_blank">Live Demo</a></p>
     <div style="text-align:right;margin-top:14px;"><button class="hud-close" id="about-close">Close</button></div>

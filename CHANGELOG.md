@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* Separate buildings, trees, roadways, parked cars, and district fountains into clear footprints; place fountains in reserved park lots and interrupt streets at any plaza crossing. Add a beach promenade, two road-aligned bridges, and a bridge-connected castle beyond the city with a low-poly mountain range and animated waves.
+* Give homes distinct roof colors and profiles plus visible front doors; keep courthouse buildings civic in scale, add bridge-end town gates and varied tree canopies, and lighten pedestrian geometry. Reduce the viewer's pixel-ratio and shadow-map budgets to lower GPU work.
 * Validate world dimensions and reject empty populations before allocating simulation state; add fallible `World::try_new` for callers that need actionable configuration errors.
 * Record the exact seed, initial population, map dimensions, and market food stock in town export format 3. The viewer continues to read format 2 and charts recorded food availability when present.
 * Validate replay frame rows and conversation records before playback, and always record a final frame for short runs.
