@@ -8,6 +8,7 @@ use crate::agent::AgentId;
 use crate::economy::{wage_for, Coins, EVICTION_AFTER};
 use crate::genome::{Gene, Genome};
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 
 pub const DISTRICTS_PER_SIDE: i32 = 4;
 pub const DISTRICT_COUNT: usize = (DISTRICTS_PER_SIDE * DISTRICTS_PER_SIDE) as usize;
@@ -23,7 +24,7 @@ const REPAIR_BELOW: f32 = 85.0;
 const MIN_PRESSURE: f32 = 0.6;
 const MAX_PRESSURE: f32 = 1.6;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
     Shack,
     Flat,
@@ -54,7 +55,7 @@ impl Kind {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Home {
     pub district: usize,
     pub kind: Kind,
@@ -75,7 +76,7 @@ impl Home {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct District {
     /// 0 is unattractive, 1 is very attractive.
     pub appeal: f32,
@@ -98,7 +99,7 @@ impl District {
 }
 
 /// A home under construction.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Project {
     pub district: usize,
     pub kind: Kind,
@@ -131,7 +132,7 @@ pub fn taste(home: &Home, district: &District, genome: &Genome) -> f32 {
     district.appeal + 0.5 * busy + 0.5 * quiet + 0.8 * space + 0.3 * home.condition / 100.0
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Realty {
     pub cash: Coins,
     pub homes: Vec<Home>,

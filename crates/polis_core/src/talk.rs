@@ -11,8 +11,9 @@ use crate::genome::Gene;
 use crate::memory::{Event, Memory};
 use crate::needs::Need;
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Act {
     Smalltalk,
     Gossip,
@@ -23,7 +24,7 @@ pub enum Act {
 const OPENER_ACTS: [Act; OPENERS] = [Act::Smalltalk, Act::Gossip, Act::Confide, Act::Quarrel];
 
 /// How the listener answered a greeting.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Reply {
     /// Greeted back, and the conversation went on.
     Greeted,
@@ -35,7 +36,7 @@ pub enum Reply {
 
 const REPLY_CHOICES: [Reply; REPLIES] = [Reply::Greeted, Reply::Nodded, Reply::Ignored];
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Utterance {
     pub tick: u64,
     pub speaker: AgentId,

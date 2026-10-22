@@ -5,6 +5,7 @@
 
 use crate::agent::AgentId;
 use crate::genome::{Gene, Genome};
+use serde::{Deserialize, Serialize};
 
 pub const MEMORY_LIMIT: usize = 24;
 pub const RELATION_LIMIT: usize = 12;
@@ -12,7 +13,7 @@ pub const FRIEND_AFFINITY: f32 = 0.3;
 
 const FORGET_BELOW: f32 = 0.05;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Event {
     Chatted,
     Argued,
@@ -47,7 +48,7 @@ impl Event {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Memory {
     pub tick: u64,
     pub event: Event,
@@ -76,7 +77,7 @@ impl Memory {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Relation {
     pub other: AgentId,
     /// -1 is hostile, 1 is devoted.
@@ -84,7 +85,7 @@ pub struct Relation {
     pub last_met: u64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Mind {
     pub memories: Vec<Memory>,
     pub relations: Vec<Relation>,

@@ -18,7 +18,24 @@ The recorded comparison used Node 24.14.1 on Windows 11 Pro with an Intel Core i
 | 1,000 | 2.338 | 0.654 | −72.0% | 2.398 | 0.773 |
 | 3,000 | 6.958 | 2.104 | −69.8% | 7.120 | 2.352 |
 
-Each median is the median of nine run averages. The “slowest run mean” is the largest of those nine averages, not a frame-time p95. This harness does not measure browser scheduling, replay sampling, DOM updates, GPU time, draw calls, or end-to-end frame pacing, and its synthetic fixture is not a recorded user export. Use browser Performance and GPU profiling with representative exports before making claims about full-frame FPS or GPU-bound behavior. These results describe this machine and harness, not a general guarantee.
+Each median is the median of nine run averages. The “slowest run mean” is the largest of those nine averages, not a frame-time p95. This harness does not measure browser scheduling, replay sampling, DOM updates, GPU time, draw calls, or end-to-end frame pacing, and its synthetic fixture is not a recorded user export. These results describe this machine and harness, not a general guarantee.
+
+## Manual real-browser profiling
+
+The recorded benchmark above is a JavaScript scene-update benchmark with rendering stubbed. It does not establish browser frame rate or GPU behavior. Use this procedure when a browser with developer tools and representative exports is available; record raw measurements and environment before proposing viewer optimizations.
+
+1. Generate three exports with fixed seeds and increasing populations (for example 100, 1,000, and 3,000 residents) using the CLI command in the README. Keep each export and its command line with the profiling notes. For replay tests, generate replay files with the same seed and `frame_every` value.
+2. Record the browser and exact version, OS, CPU, GPU, viewport size, device-pixel ratio, graphics settings, fixture population/file sizes, and whether the browser is foregrounded. Close unrelated tabs and extensions where possible.
+3. Load each export once to warm up code and assets, then reload it and record at least five runs. Measure startup, JSON parse/world initialization, steady playback, replay seek, and a repeated world reload as separate phases. Use the same playback duration and controls for each run.
+4. In Chromium DevTools Performance, record a trace for each phase. Capture main-thread frame durations and long tasks; report median, p95, and p99 from individual frame samples. Use Bottom-Up/Call Tree views to separate viewer update work from render submission. A trace's JavaScript time is not GPU execution time.
+5. Use the browser's Memory tools to take a heap snapshot after warm-up and after repeated world reloads and a fixed playback interval. Record retained heap and detached DOM or scene objects, if any. Use browser GPU tooling when available and identify the exact tool and metric; otherwise leave GPU timing unknown.
+6. Repeat each run with identical fixtures and settings after a change. Report individual run values, medians, tail percentiles, and any outliers or regressions. Do not compare a local synthetic fixture to real export timings as if they were equivalent.
+
+No real-browser frame-time, heap, or GPU measurements are recorded in this repository yet. The earlier live demo attempt produced an unusable black canvas, and the available automation did not expose browser performance traces. These manual steps are the next measurement, not a substitute result.
+
+## House detail and GPU workload
+
+Homes now use kind-specific roof profiles and colors with instanced front doors and lintels. Those details are one town-wide draw batch rather than one draw call per home. Bridge gates, castle parts, and the two tree canopy types are also instanced. The courthouse stays an ordinary civic building; the single castle is placed beyond the river, reached by the outer bridge, with a low-poly mountain range behind it. River and lake surfaces use a small vertex wave plus a moving surface shimmer. Pedestrian spheres and capsules use fewer vertices, and only bodies cast pedestrian shadows. To reduce GPU work, the renderer caps device pixel ratio at 1.5 instead of 2 and uses a 1024×1024 sun shadow map instead of 2048×2048. At a device pixel ratio of 2, the cap shades about 44% fewer screen pixels; the shadow map contains 75% fewer texels. These are workload reductions, not measured frame-rate gains. The available benchmark stubs WebGL rendering, and this environment did not expose stable browser/GPU frame timing. Profile the deployed viewer on representative hardware before reporting FPS changes.
 
 ## Change and trade-offs
 

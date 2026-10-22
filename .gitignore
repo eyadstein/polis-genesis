@@ -5,3 +5,8 @@ viewer/node_modules/
 viewer/dist/
 viewer/public/town.json
 viewer/public/replay.json
+
+.maintenance-backup/
+pypi-check-dist/
+*.bak
+README-new.md

@@ -4,8 +4,9 @@
 //! occasionally mutate, so families resemble each other but nobody is a copy.
 
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Gene {
     Openness,
     Conscientiousness,
@@ -54,7 +55,7 @@ fn clamp01(value: f32) -> f32 {
     value.clamp(0.0, 1.0)
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Genome {
     genes: [f32; GENE_COUNT],
 }

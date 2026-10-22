@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "polis-genesis"
 version = "0.2.0"
-description = "A living autonomous multi agent society simulation with neural minds, realistic economics, and 3D visualizer"
+description = "A deterministic town simulation with a Rust engine, Python tools, and a 3D viewer"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"

@@ -17,7 +17,12 @@ use crate::names::NameBook;
 use crate::needs::Need;
 use crate::rng::Rng;
 use crate::talk::{converse, Act, Utterance};
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::fmt;
+
+/// Current version of the resumable simulation save format.
+pub const SAVE_FORMAT_VERSION: u32 = 1;
 
 #[derive(Clone, Debug)]
 pub struct WorldConfig {
@@ -84,7 +89,7 @@ pub struct Stats {
 }
 
 /// Running totals of what each job has paid, for comparing jobs.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct WageLedger {
     pub total: [Coins; Job::ALL.len()],
     pub ticks: [u64; Job::ALL.len()],
@@ -132,6 +137,7 @@ impl Labor {
 }
 
 /// What a person leaves behind when they die.
+#[derive(Clone, Debug, Serialize, Deserialize)]
 struct Estate {
     id: AgentId,
     money: Coins,
@@ -139,6 +145,8 @@ struct Estate {
     partner: Option<AgentId>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct World {
     pub tick: u64,
     pub seed: u64,
@@ -153,6 +161,7 @@ pub struct World {
     rent_countdown: u64,
     housing_countdown: u64,
     names: NameBook,
+    #[serde(with = "bond_map")]
     bonds: BTreeMap<(AgentId, AgentId), f32>,
     estates: Vec<Estate>,
     births: u64,
@@ -160,6 +169,81 @@ pub struct World {
     pub justice: Justice,
     conversations: u64,
     gossips: u64,
+}
+
+/// Errors returned while reading or writing a resumable simulation save.
+#[derive(Debug)]
+pub enum WorldSaveError {
+    Json(serde_json::Error),
+    MissingVersion,
+    UnsupportedVersion(u64),
+    InvalidState(&'static str),
+}
+
+impl fmt::Display for WorldSaveError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Json(error) => write!(f, "invalid simulation save JSON: {error}"),
+            Self::MissingVersion => write!(f, "simulation save is missing its format version"),
+            Self::UnsupportedVersion(version) => {
+                write!(f, "unsupported simulation save version {version}")
+            }
+            Self::InvalidState(reason) => write!(f, "invalid simulation save state: {reason}"),
+        }
+    }
+}
+
+impl std::error::Error for WorldSaveError {}
+
+impl From<serde_json::Error> for WorldSaveError {
+    fn from(error: serde_json::Error) -> Self {
+        Self::Json(error)
+    }
+}
+
+fn in_unit_range(value: f32) -> bool {
+    (0.0..=1.0).contains(&value)
+}
+
+fn agent_ref_is_valid(id: Option<AgentId>, count: usize) -> bool {
+    id.is_none_or(|id| (id as usize) < count)
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SaveEnvelope<W> {
+    format_version: u32,
+    world: W,
+}
+
+mod bond_map {
+    use crate::agent::AgentId;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+    use std::collections::BTreeMap;
+
+    pub fn serialize<S>(
+        bonds: &BTreeMap<(AgentId, AgentId), f32>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        bonds.iter().collect::<Vec<_>>().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<BTreeMap<(AgentId, AgentId), f32>, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let entries = Vec::<((AgentId, AgentId), f32)>::deserialize(deserializer)?;
+        let bonds: BTreeMap<_, _> = entries.iter().copied().collect();
+        if bonds.len() != entries.len() {
+            return Err(serde::de::Error::custom("duplicate social bond"));
+        }
+        Ok(bonds)
+    }
 }
 
 const FOOD_REGROWTH: f32 = 0.002;
@@ -171,6 +255,166 @@ const UTTERANCE_LOG: usize = 200;
 const MOVE_OUT_SAVINGS: Coins = 60;
 
 impl World {
+    /// Serialize the complete simulation state for later continuation.
+    /// This format is separate from the viewer's read-only town export.
+    pub fn save_json(&self) -> Result<String, WorldSaveError> {
+        self.validate_saved_state()?;
+        serde_json::to_string(&SaveEnvelope {
+            format_version: SAVE_FORMAT_VERSION,
+            world: self,
+        })
+        .map_err(WorldSaveError::from)
+    }
+
+    /// Restore a simulation from a versioned save and validate its invariants.
+    pub fn load_json(json: &str) -> Result<Self, WorldSaveError> {
+        let value: serde_json::Value = serde_json::from_str(json)?;
+        let version = value
+            .get("format_version")
+            .and_then(serde_json::Value::as_u64)
+            .ok_or(WorldSaveError::MissingVersion)?;
+        if version != u64::from(SAVE_FORMAT_VERSION) {
+            return Err(WorldSaveError::UnsupportedVersion(version));
+        }
+        let save: SaveEnvelope<World> = serde_json::from_value(value)?;
+        save.world.validate_saved_state()?;
+        Ok(save.world)
+    }
+
+    fn validate_saved_state(&self) -> Result<(), WorldSaveError> {
+        let invalid = WorldSaveError::InvalidState;
+        let cells = i64::from(self.width)
+            .checked_mul(i64::from(self.height))
+            .and_then(|count| usize::try_from(count).ok());
+        if self.width < 4 || self.height < 4 || cells != Some(self.food.len()) {
+            return Err(invalid("world dimensions do not match the food grid"));
+        }
+        if self.initial_population == 0
+            || self.initial_population as usize > self.agents.len()
+            || self.agents.len() > u32::MAX as usize
+        {
+            return Err(invalid("population metadata is inconsistent"));
+        }
+        if self.economy.realty.districts.len() != DISTRICT_COUNT {
+            return Err(invalid("town must contain exactly 16 districts"));
+        }
+        if self.names.len() != self.agents.len() {
+            return Err(invalid("resident names are not unique or incomplete"));
+        }
+        if self.food.iter().any(|value| !in_unit_range(*value)) {
+            return Err(invalid(
+                "food stock values must be finite and between 0 and 1",
+            ));
+        }
+        if self.economy.market.cash < 0
+            || self.economy.realty.cash < 0
+            || self.economy.treasury.cash < 0
+        {
+            return Err(invalid("town account balances cannot be negative"));
+        }
+
+        for (index, agent) in self.agents.iter().enumerate() {
+            if agent.id as usize != index || !self.names.contains(&agent.name) {
+                return Err(invalid(
+                    "resident identity or name registry is inconsistent",
+                ));
+            }
+            if agent.pos.0 < 0
+                || agent.pos.1 < 0
+                || agent.pos.0 >= self.width
+                || agent.pos.1 >= self.height
+            {
+                return Err(invalid("resident position is outside the world"));
+            }
+            if agent.money < 0
+                || !in_unit_range(agent.needs.hunger)
+                || !in_unit_range(agent.needs.thirst)
+                || !in_unit_range(agent.needs.energy)
+                || !in_unit_range(agent.needs.social)
+                || !in_unit_range(agent.needs.purpose)
+            {
+                return Err(invalid("resident money or needs are out of range"));
+            }
+            if !(-1.0..=1.0).contains(&agent.mood.valence) || !in_unit_range(agent.mood.arousal) {
+                return Err(invalid("resident mood is out of range"));
+            }
+            if !Gene::ALL
+                .iter()
+                .all(|gene| in_unit_range(agent.genome.get(*gene)))
+            {
+                return Err(invalid("resident genome is out of range"));
+            }
+            if !agent.brain.is_valid() {
+                return Err(invalid("resident learned policy is out of range"));
+            }
+            if agent
+                .home
+                .is_some_and(|home| home >= self.economy.realty.homes.len())
+            {
+                return Err(invalid("resident refers to a missing home"));
+            }
+            if !agent_ref_is_valid(agent.partner, self.agents.len())
+                || agent.parents.is_some_and(|(first, second)| {
+                    first as usize >= self.agents.len() || second as usize >= self.agents.len()
+                })
+            {
+                return Err(invalid("resident family links refer to a missing resident"));
+            }
+            if agent.mind.memories.len() > crate::memory::MEMORY_LIMIT
+                || agent.mind.relations.len() > crate::memory::RELATION_LIMIT
+                || agent.mind.memories.iter().any(|memory| {
+                    memory.tick > self.tick
+                        || !(-1.0..=1.0).contains(&memory.valence)
+                        || !in_unit_range(memory.strength)
+                        || !agent_ref_is_valid(memory.about, self.agents.len())
+                })
+                || agent.mind.relations.iter().any(|relation| {
+                    relation.other as usize >= self.agents.len()
+                        || relation.other == agent.id
+                        || relation.last_met > self.tick
+                        || !(-1.0..=1.0).contains(&relation.affinity)
+                })
+            {
+                return Err(invalid("resident memory or relationship state is invalid"));
+            }
+        }
+
+        if self.economy.realty.homes.iter().any(|home| {
+            home.district >= self.economy.realty.districts.len()
+                || !(1..=8).contains(&home.rooms)
+                || !in_unit_range(home.condition / 100.0)
+                || home.rent < 0
+                || !agent_ref_is_valid(home.tenant, self.agents.len())
+        }) || self.economy.realty.districts.iter().any(|district| {
+            !in_unit_range(district.appeal)
+                || !in_unit_range(district.occupancy)
+                || !(0.0..=2.0).contains(&district.pressure)
+                || !in_unit_range(district.neighbor_wealth)
+        }) {
+            return Err(invalid("housing state is invalid"));
+        }
+        if self.bonds.iter().any(|(&(first, second), strength)| {
+            first >= second
+                || second as usize >= self.agents.len()
+                || !strength.is_finite()
+                || *strength < 0.0
+                || *strength > 2.2
+        }) {
+            return Err(invalid("social bond state is invalid"));
+        }
+        if self.utterances.iter().any(|utterance| {
+            utterance.tick > self.tick
+                || utterance.speaker as usize >= self.agents.len()
+                || utterance.listener as usize >= self.agents.len()
+                || !agent_ref_is_valid(utterance.about, self.agents.len())
+                || !(-1.0..=1.0).contains(&utterance.warmth)
+        }) {
+            return Err(invalid("conversation history is invalid"));
+        }
+
+        Ok(())
+    }
+
     pub fn new(config: WorldConfig) -> Self {
         Self::try_new(config).unwrap_or_else(|error| panic!("invalid world configuration: {error}"))
     }

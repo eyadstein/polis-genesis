@@ -63,7 +63,7 @@ describe("world scene", () => {
     expect(picked).toBe(1);
     const before = scene.controls.target.x;
     for (let i = 0; i < 20; i++) scene.update(10, [{ id: 1, x: 40, y: 40, action: 3, jailed: false }], 0.016);
-    expect(scene.controls.target.x).toBeGreaterThan(before);
+    expect(Math.abs(scene.controls.target.x - 40)).toBeLessThan(Math.abs(before - 40));
     scene.select(null);
     expect(scene.selectedId).toBeNull();
   });

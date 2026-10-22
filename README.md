@@ -21,7 +21,8 @@ The Rust engine keeps simulation state and seeded behavior reproducible. A Pytho
 - **People and behavior:** genomes, needs, moods, movement, memory, relationships, conversation, and family life.
 - **Town systems:** jobs, wages, markets, housing, taxes, law enforcement, courts, and a shared treasury.
 - **World simulation:** seeded runs, reports, JSON snapshots, and recorded replays.
-- **3D viewer:** districts, residents, homes, time controls, news, and replay playback, built with Three.js and Vite.
+- **Resumable Rust state:** versioned JSON saves preserve the full simulation, including its random-number generator; these are separate from viewer snapshots.
+- **3D viewer:** districts, residents, detailed homes, civic buildings, varied trees, spaced streets, fountain plazas, a beach promenade, bridges, animated water, and a distant castle backed by low-poly mountains, built with Three.js and Vite. Parked cars are visual markers for occupied homes with a resident balance of at least 250 coins; vehicles are not yet owned or simulated by the Rust economy.
 - **Optional local speech:** the `ollama` feature can use a local Ollama model; rule-based speech remains the default and fallback.
 - **Python analysis:** a standard-library report script reads exported town JSON.
 
@@ -92,6 +93,15 @@ python tools/analyze.py town.json
 
 Town exports use format 3 and record the exact seed, initial population, map size, and market food stock over time. The viewer also reads format 2 snapshots.
 
+Rust applications can save and resume the complete simulation state:
+
+```rust
+let save = world.save_json()?;
+let resumed = polis_core::World::load_json(&save)?;
+```
+
+Simulation saves currently use format version 1. The loader rejects unsupported versions and validates restored state. Town exports and replay files remain separate formats for the viewer.
+
 ### Run the live 3D viewer locally
 
 In one terminal at the repository root, start the simulation server:
@@ -110,6 +120,8 @@ npm run dev
 
 Open the Vite URL printed in the terminal and navigate to `world.html`. The development server forwards `/api` requests to the town server on `127.0.0.1:8787`. On Windows, `./run.ps1` starts both processes and opens the viewer.
 
+With the live town server connected, the viewer toolbar includes **Add 1 person**, **Add 5 people**, and **Add 20 people** controls. Recorded replays, including the static GitHub Pages demo, cannot change their population; start the live server above to use these controls.
+
 Build the static viewer from the `viewer` directory with:
 
 ```bash
@@ -120,11 +132,13 @@ The output is written to `viewer/dist`. GitHub Actions builds the site and publi
 
 ## Releases and project status
 
-The latest tagged GitHub release is **v0.2.0**. The Python package metadata also currently declares version **0.2.0**. See the [changelog](CHANGELOG.md) for project changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets. GitHub Actions runs Rust, Python, and viewer checks and builds the Pages site.
+The latest GitHub release tag is **v0.3.0**. The Python package metadata currently declares **0.2.0**, so the package version has not caught up with the latest repository release. See the [changelog](CHANGELOG.md) for project changes and the [GitHub releases page](https://github.com/eyadstein/polis-genesis/releases) for release assets. GitHub Actions runs Rust, Python, and viewer checks and builds the Pages site.
 
 ## Documentation
 
+- [Agent architecture and evaluation](docs/agent-architecture.md)
 - [Design notes](docs/DESIGN.md)
+- [Viewer performance notes](docs/viewer-performance.md)
 - [Contributing guide](CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
 - [MIT License](LICENSE)

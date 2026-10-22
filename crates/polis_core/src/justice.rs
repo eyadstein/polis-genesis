@@ -8,17 +8,18 @@
 use crate::agent::AgentId;
 use crate::economy::Coins;
 use crate::rng::Rng;
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
 pub const MAX_ATTEMPTS: u8 = 5;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CrimeKind {
     Theft,
     Assault,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Crime {
     pub id: u32,
     pub tick: u64,
@@ -31,19 +32,19 @@ pub struct Crime {
     pub attempts: u8,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Case {
     pub crime: Crime,
     pub defended: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Sentence {
     pub fine: Coins,
     pub prison_ticks: u64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Justice {
     /// Crimes the police have not solved yet.
     pub open: VecDeque<Crime>,

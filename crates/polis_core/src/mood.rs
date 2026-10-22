@@ -5,8 +5,9 @@
 
 use crate::genome::{Gene, Genome};
 use crate::needs::Needs;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Mood {
     pub valence: f32,
     pub arousal: f32,
