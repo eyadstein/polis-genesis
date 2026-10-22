@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "polis-genesis"
-version = "0.2.0"
+version = "0.4.0"
 description = "A deterministic town simulation with a Rust engine, Python tools, and a 3D viewer"
 readme = "README.md"
 requires-python = ">=3.9"
