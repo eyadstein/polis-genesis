@@ -238,10 +238,11 @@ export function buildLayout(town: Town): Layout {
 }
 
 /** Moves a point out of any building so people walk on the roads. */
-export function pushOut(layout: Layout, x: number, z: number): { x: number; z: number } {
+export function pushOut(layout: Layout, x: number, z: number, out: { x: number; z: number } = { x, z }): { x: number; z: number } {
   const margin = 0.3;
-  const boxes = [...layout.houses, ...layout.workplaces];
-  for (const b of boxes) {
+  out.x = x;
+  out.z = z;
+  for (const b of layout.houses) {
     const hw = b.w / 2 + margin;
     const hd = b.d / 2 + margin;
     const dx = x - b.x;
@@ -249,10 +250,25 @@ export function pushOut(layout: Layout, x: number, z: number): { x: number; z: n
     if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
       const px = hw - Math.abs(dx);
       const pz = hd - Math.abs(dz);
-      return px < pz ? { x: b.x + Math.sign(dx || 1) * hw, z } : { x, z: b.z + Math.sign(dz || 1) * hd };
+      if (px < pz) out.x = b.x + Math.sign(dx || 1) * hw;
+      else out.z = b.z + Math.sign(dz || 1) * hd;
+      return out;
     }
   }
-  return { x, z };
+  for (const b of layout.workplaces) {
+    const hw = b.w / 2 + margin;
+    const hd = b.d / 2 + margin;
+    const dx = x - b.x;
+    const dz = z - b.z;
+    if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
+      const px = hw - Math.abs(dx);
+      const pz = hd - Math.abs(dz);
+      if (px < pz) out.x = b.x + Math.sign(dx || 1) * hw;
+      else out.z = b.z + Math.sign(dz || 1) * hd;
+      return out;
+    }
+  }
+  return out;
 }
 
 /** Residents of a house split over its floors, lowest floor first. */
