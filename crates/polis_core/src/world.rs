@@ -15,6 +15,7 @@ use crate::justice::{conviction_chance, deterrence, sentence_for, theft_urge, Cr
 use crate::memory::{Event, Memory};
 use crate::names::NameBook;
 use crate::needs::Need;
+use crate::net;
 use crate::rng::Rng;
 use crate::talk::{converse, Act, Utterance};
 use serde::{Deserialize, Serialize};
@@ -169,6 +170,14 @@ pub struct World {
     pub justice: Justice,
     conversations: u64,
     gossips: u64,
+    /// Whether people's neural networks help decide their daily choices.
+    /// Turn off to run the old rules alone, for comparison.
+    #[serde(default = "learned_choices_on")]
+    pub learned_choices: bool,
+}
+
+fn learned_choices_on() -> bool {
+    true
 }
 
 /// Errors returned while reading or writing a resumable simulation save.
@@ -471,6 +480,7 @@ impl World {
             justice: Justice::default(),
             conversations: 0,
             gossips: 0,
+            learned_choices: true,
         };
         world.refresh_housing(&[]);
         Ok(world)
@@ -1337,10 +1347,17 @@ impl World {
             employed: agent.job.is_some(),
             money_pressure: money_pressure(agent.money),
         };
+        let inputs = net::inputs(agent, &percept);
+        let open = net::allowed(&percept);
+        let learning = self.learned_choices && agent.jailed_until.is_none();
+        if self.learned_choices {
+            agent.brain.daily.learn_from_pending(&inputs, &open);
+        }
+        let feeling_before = net::feeling(agent);
         agent.action = if agent.jailed_until.is_some() {
             Action::Rest
         } else {
-            agent.choose_action(&percept, &mut self.rng)
+            agent.choose_action_with(&percept, &inputs, self.learned_choices, &mut self.rng)
         };
 
         match agent.action {
@@ -1381,6 +1398,13 @@ impl World {
             }
             Action::Work => self.work(agent, labor, homeless),
             Action::Wander => agent.pos = self.random_step(agent.pos),
+        }
+
+        if learning {
+            let lesson = net::reward(feeling_before, net::feeling(agent));
+            agent.brain.daily.remember(inputs, agent.action, lesson);
+        } else {
+            agent.brain.daily.forget_pending();
         }
 
         agent.age += 1;

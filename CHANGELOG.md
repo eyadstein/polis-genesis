@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+* Wire a small neural network into every resident's daily choices. It has 13 inputs, one hidden layer of 8 tanh units and 6 outputs (eat, drink, rest, socialize, work, wander), is trained online by backpropagation from how the resident feels after each choice, differs for each person, is blended into children and is saved with the town (older saves load with an untrained network). The old rules still provide every base score and decide alone in emergencies (very low hunger, thirst or energy). `World::learned_choices` turns the networks off for comparison, and a test checks that towns with and without networks stay equally healthy.
 * Add a `GET /api/health` route to the live server that answers `{"status":"ok"}` without touching the town.
 
 ## 0.4.0

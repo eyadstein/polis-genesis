@@ -16,6 +16,7 @@ pub mod memory;
 pub mod mood;
 pub mod names;
 pub mod needs;
+pub mod net;
 pub mod report;
 pub mod rng;
 pub mod talk;

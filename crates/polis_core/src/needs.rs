@@ -70,6 +70,11 @@ impl Needs {
         (self.hunger + self.thirst + self.energy + self.social + self.purpose) / 5.0
     }
 
+    /// The lowest level among the given needs.
+    pub fn lowest_of(&self, which: &[Need]) -> f32 {
+        which.iter().map(|need| self.get(*need)).fold(1.0, f32::min)
+    }
+
     pub fn lowest(&self) -> f32 {
         self.hunger
             .min(self.thirst)
