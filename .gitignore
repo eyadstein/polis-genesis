@@ -10,3 +10,6 @@ viewer/public/replay.json
 pypi-check-dist/
 *.bak
 README-new.md
+__pycache__/
+*.pyc
+*.egg-info/

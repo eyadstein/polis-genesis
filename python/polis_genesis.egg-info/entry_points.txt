@@ -1,3 +1,0 @@
-[console_scripts]
-polis = polis_genesis.cli:main
-polis-genesis = polis_genesis.cli:main
