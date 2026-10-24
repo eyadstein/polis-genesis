@@ -13,3 +13,6 @@ README-new.md
 __pycache__/
 *.pyc
 *.egg-info/
+
+/0
+/2
