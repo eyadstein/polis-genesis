@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+* Add a `GET /api/health` route to the live server that answers `{"status":"ok"}` without touching the town.
+
 ## 0.4.0
 
 * Add validated, versioned JSON saves and loading for the complete Rust simulation state, including invariant checks and deterministic continuation after restoring.

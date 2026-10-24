@@ -1,6 +1,7 @@
 //! A small local web server around the living town.
 //!
 //! Routes, all on 127.0.0.1 so only this computer can reach them:
+//!   GET  /api/health                lightweight server health check
 //!   GET  /api/town                  the whole town, like the town file
 //!   GET  /api/frames?after=N&talk=M what is new since frame N and speech line M
 //!   POST /api/clock                 {"paused": bool, "speed": ticks per second}
@@ -44,6 +45,7 @@ fn parse(body: &str) -> Result<Value, (u16, String)> {
 pub fn handle(engine: &Mutex<Engine>, method: &str, url: &str, body: &str) -> (u16, String) {
     let path = url.split('?').next().unwrap_or(url);
     match (method, path) {
+        ("GET", "/api/health") => (200, json!({ "status": "ok" }).to_string()),
         ("GET", "/api/town") => (200, lock(engine).town().to_string()),
         ("GET", "/api/frames") => {
             let after = number(url, "after", 0);
@@ -84,7 +86,7 @@ pub fn handle(engine: &Mutex<Engine>, method: &str, url: &str, body: &str) -> (u
                 Err(message) => fail(400, &message),
             }
         }
-        (_, "/api/town" | "/api/frames" | "/api/clock" | "/api/people") => {
+        (_, "/api/health" | "/api/town" | "/api/frames" | "/api/clock" | "/api/people") => {
             fail(405, "wrong method")
         }
         _ => fail(404, "no such route"),
@@ -160,6 +162,14 @@ mod tests {
     }
 
     #[test]
+    fn healthcheck_returns_ok() {
+        let e = engine();
+        let reply = handle(&e, "GET", "/api/health", "");
+        assert_eq!(reply.0, 200);
+        assert_eq!(json_of(&reply)["status"], "ok");
+    }
+
+    #[test]
     fn it_serves_the_town() {
         let e = engine();
         let reply = handle(&e, "GET", "/api/town", "");
@@ -226,6 +236,7 @@ mod tests {
         assert_eq!(handle(&e, "GET", "/nothing", "").0, 404);
         assert_eq!(handle(&e, "DELETE", "/api/town", "").0, 405);
         assert_eq!(handle(&e, "GET", "/api/clock", "").0, 405);
+        assert_eq!(handle(&e, "POST", "/api/health", "").0, 405);
     }
 
     #[test]
