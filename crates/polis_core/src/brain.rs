@@ -9,6 +9,7 @@
 use crate::agent::Agent;
 use crate::agent::AgentId;
 use crate::genome::{Gene, Genome};
+use crate::net::DailyNet;
 use crate::rng::Rng;
 use serde::de::Error as DeError;
 use serde::ser::SerializeStruct;
@@ -236,11 +237,14 @@ pub struct MindSummary {
 pub struct Brain {
     pub reply: Policy<REPLIES>,
     pub opener: Policy<OPENERS>,
+    /// The small neural network that helps decide what to do each tick.
+    #[serde(default)]
+    pub daily: DailyNet,
 }
 
 impl Brain {
     pub(crate) fn is_valid(&self) -> bool {
-        self.reply.is_valid() && self.opener.is_valid()
+        self.reply.is_valid() && self.opener.is_valid() && self.daily.is_valid()
     }
 
     /// The temperament someone is born with, before life teaches them anything.
@@ -290,6 +294,7 @@ impl Brain {
         Self {
             reply: Policy::new(reply),
             opener: Policy::new(opener),
+            daily: DailyNet::from_genome(genome),
         }
     }
 
@@ -299,6 +304,7 @@ impl Brain {
         Brain {
             reply: Policy::blend(&own.reply, &a.reply, &b.reply),
             opener: Policy::blend(&own.opener, &a.opener, &b.opener),
+            daily: DailyNet::blend(&own.daily, &a.daily, &b.daily),
         }
     }
 
@@ -308,7 +314,9 @@ impl Brain {
 
     /// Changes whenever anything was learned. Used to check runs repeat exactly.
     pub fn fingerprint(&self) -> u64 {
-        self.reply.fingerprint().rotate_left(17) ^ self.opener.fingerprint()
+        self.reply.fingerprint().rotate_left(17)
+            ^ self.opener.fingerprint()
+            ^ self.daily.fingerprint().rotate_left(31)
     }
 }
 

@@ -620,3 +620,91 @@ fn police_judges_and_lawyers_are_adults_with_no_prison_sentence() {
         }
     }
 }
+
+fn run_town(seed: u64, learned: bool, ticks: u64) -> World {
+    let mut world = World::new(small_config(seed));
+    world.learned_choices = learned;
+    world.run(ticks);
+    world
+}
+
+#[test]
+fn learned_choices_keep_the_town_as_healthy_as_the_old_rules() {
+    // One town can swing either way by chance, so compare the totals of a few.
+    let seeds = [11, 12, 13];
+    let (mut old_alive, mut new_alive) = (0, 0);
+    let (mut old_starved, mut new_starved) = (0, 0);
+    let (mut old_mood, mut new_mood) = (0.0, 0.0);
+    let (mut old_hunger, mut new_hunger) = (0.0, 0.0);
+    for seed in seeds {
+        let old = run_town(seed, false, 4000).stats();
+        let new = run_town(seed, true, 4000).stats();
+        old_alive += old.alive;
+        new_alive += new.alive;
+        old_starved += old.starved;
+        new_starved += new.starved;
+        old_mood += old.mean_valence / seeds.len() as f32;
+        new_mood += new.mean_valence / seeds.len() as f32;
+        old_hunger += old.mean_hunger / seeds.len() as f32;
+        new_hunger += new.mean_hunger / seeds.len() as f32;
+    }
+    assert!(
+        new_alive * 10 >= old_alive * 9,
+        "alive {new_alive} with networks against {old_alive} with rules"
+    );
+    assert!(
+        new_starved <= old_starved + 4 + old_starved / 4,
+        "starved {new_starved} against {old_starved}"
+    );
+    assert!(
+        new_mood >= old_mood - 0.05,
+        "mood {new_mood} against {old_mood}"
+    );
+    assert!(
+        new_hunger >= old_hunger - 0.05,
+        "hunger {new_hunger} against {old_hunger}"
+    );
+}
+
+#[test]
+fn everyone_trains_their_own_network_while_living() {
+    let world = run_town(21, true, 3000);
+    let living: Vec<_> = world.agents.iter().filter(|a| a.is_alive()).collect();
+    assert!(!living.is_empty());
+    for agent in &living {
+        assert!(agent.brain.daily.is_valid());
+        assert!(
+            agent.brain.daily.steps() > 0,
+            "{} never learned",
+            agent.name
+        );
+    }
+    assert!(living.iter().any(|a| a.brain.daily.trust() > 0.0));
+    let mut prints: Vec<u64> = living.iter().map(|a| a.brain.daily.fingerprint()).collect();
+    prints.sort_unstable();
+    prints.dedup();
+    assert_eq!(prints.len(), living.len(), "every network is different");
+
+    let rules_only = run_town(21, false, 3000);
+    assert!(rules_only.agents.iter().all(|a| a.brain.daily.steps() == 0));
+}
+
+#[test]
+fn learned_runs_repeat_exactly() {
+    let a = run_town(22, true, 2500);
+    let b = run_town(22, true, 2500);
+    assert_eq!(a.stats(), b.stats());
+    assert_eq!(a.save_json().unwrap(), b.save_json().unwrap());
+}
+
+#[test]
+fn saves_made_before_networks_existed_still_load() {
+    let world = run_town(23, true, 300);
+    let save = world.save_json().unwrap();
+    let mut value: serde_json::Value = serde_json::from_str(&save).unwrap();
+    for agent in value["world"]["agents"].as_array_mut().unwrap() {
+        agent["brain"].as_object_mut().unwrap().remove("daily");
+    }
+    let old_save = World::load_json(&value.to_string()).expect("old save loads");
+    assert!(old_save.agents.iter().all(|a| a.brain.daily.steps() == 0));
+}

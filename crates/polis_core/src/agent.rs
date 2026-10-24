@@ -7,6 +7,7 @@ use crate::genome::{Gene, Genome};
 use crate::memory::Mind;
 use crate::mood::Mood;
 use crate::needs::{urgency, Need, Needs};
+use crate::net;
 use crate::rng::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -136,8 +137,23 @@ impl Agent {
         (20_000.0 + 20_000.0 * self.genome.get(Gene::Longevity)) as u32
     }
 
-    /// Pick the action that feels most worthwhile right now.
+    /// Pick the action that feels most worthwhile right now, by the old
+    /// rules alone.
     pub fn choose_action(&self, percept: &Percept, rng: &mut Rng) -> Action {
+        self.choose_action_with(percept, &net::inputs(self, percept), false, rng)
+    }
+
+    /// Pick the action that feels most worthwhile right now. With `learned`
+    /// on, the person's neural network adds its own view to the rules, except
+    /// in an emergency (very hungry, thirsty or tired), where only the rules
+    /// decide.
+    pub fn choose_action_with(
+        &self,
+        percept: &Percept,
+        inputs: &net::Inputs,
+        learned: bool,
+        rng: &mut Rng,
+    ) -> Action {
         let g = &self.genome;
         let food_pull = if percept.food_underfoot || percept.meal_affordable {
             1.0
@@ -165,9 +181,18 @@ impl Agent {
             (Action::Work, self.work_appeal(percept)),
             (Action::Wander, 0.1 + 0.2 * g.get(Gene::Openness)),
         ];
+        let in_emergency = self
+            .needs
+            .lowest_of(&[Need::Hunger, Need::Thirst, Need::Energy])
+            < net::REFLEX_LEVEL;
+        let nudges = if learned && !in_emergency {
+            self.brain.daily.nudges(inputs)
+        } else {
+            [0.0; net::CHOICES]
+        };
         let mut best = (Action::Wander, f32::MIN);
         for (action, score) in options {
-            let noisy = score + rng.gaussian() * 0.03;
+            let noisy = score + nudges[net::slot(action)] + rng.gaussian() * 0.03;
             if noisy > best.1 {
                 best = (action, noisy);
             }

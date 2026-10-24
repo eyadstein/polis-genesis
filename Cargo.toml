@@ -13,3 +13,7 @@ documentation = "https://eyadstein.github.io/polis-genesis/world.html"
 [profile.release]
 opt-level = 3
 lto = true
+
+# Tests run whole towns for thousands of ticks, so keep them optimized.
+[profile.test]
+opt-level = 2
