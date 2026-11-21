@@ -2,7 +2,7 @@
 
 **An autonomous town simulation where artificial life meets a living 3D world.**
 
-[![Open the live demo](https://img.shields.io/badge/Live_demo-Explore_the_town-168a55?style=for-the-badge)](https://eyadstein.github.io/polis-genesis/)
+[![Open the live demo](https://img.shields.io/badge/Live_demo-Explore_the_town-168a55?style=for-the-badge)](https://eyadstein.github.io/polis-genesis/world.html)
 
 [![CI](https://img.shields.io/github/actions/workflow/status/eyadstein/polis-genesis/ci.yml?branch=main&label=CI&logo=githubactions&logoColor=white&style=flat-square)](https://github.com/eyadstein/polis-genesis/actions/workflows/ci.yml)
 [![Pages deployment](https://img.shields.io/github/actions/workflow/status/eyadstein/polis-genesis/pages.yml?branch=main&label=Pages&logo=githubpages&logoColor=white&style=flat-square)](https://github.com/eyadstein/polis-genesis/actions/workflows/pages.yml)
